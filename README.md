@@ -1,6 +1,6 @@
 # Wrapped
 
-Visualize your config activity in review within Neovim stats, streaks, and heatmaps
+Visualize and review your Neovim configuration activity with stats, insights, history, and heatmaps.
 
 ![wrapped](https://github.com/user-attachments/assets/624d7d7f-5eb2-447d-bb8b-5f24b3adbbe9)
 ![wrapped border](https://github.com/user-attachments/assets/b50724de-0576-4034-9cd0-bc86eb427139)
@@ -45,6 +45,13 @@ Run the following command to open the dashboard:
 :NvimWrapped
 ```
 
+## Mappings
+
+| Key | Action    |
+| --- | --------- |
+| `<` | prev year |
+| `>` | next year |
+
 ## Default Config
 
 ```lua
@@ -66,3 +73,17 @@ require("wrapped").setup({
   },
 })
 ```
+
+## How it Works
+
+> **Note**: Lots of inneffiency since im mostly new to this stuff and still learning but I'll make sure to iterate on it and make better changes.
+
+- **Git Analytics**: Aggregates history via `git log` and `git rev-list`. Streaks are calculated by tracking consecutive days with commit activity. The "Config Size" chart samples your commit history and performs a `git diff --shortstat` against an empty tree at each point to estimate line growth.
+- **Plugin Tracking**:
+  - **Current**: Interface directly with the `lazy.nvim` API for active plugin counts.
+  - **Total Ever**: Scans `git log` patches for new plugin definitions (specifically within `lua/plugins`) to estimate how many unique plugins you've tried.
+  - **Age**: Inspects the local git history of each installed plugin to find the oldest and newest additions to your current setup.
+- **File Analysis**: Recursively scans your configuration directory using `plenary.scandir`. It parses files to calculate total line counts, distribution by file extension (e.g., Lua, Vim, Markdown), and identifies your largest/smallest configuration files.
+- **Plenary Integration**:
+  - **Async Operations**: Leverages `plenary.job` to run git operations in parallel when fetching plugin ages, using `vim.wait` for non-blocking synchronization.
+  - **Performance**: Utilizes `plenary.scandir` for efficient file system parsing and `plenary.job` for all external git process management.
