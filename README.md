@@ -4,7 +4,7 @@
 -- lazy.nvim
 {
   "aikhe/wrapped.nvim",
-  dependencies = 'nvim-lua/plenary.nvim',
+  dependencies = { 'nvim-lua/plenary.nvim', 'nvzone/volt'},
   opts = {}
 }
 ```
