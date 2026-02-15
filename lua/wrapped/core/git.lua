@@ -1,6 +1,5 @@
 ---@class Wrapped.Core.Git
 local M = {}
-local Job = require "plenary.job"
 
 ---@return string path
 local function get_path() return require("wrapped").config.path end
@@ -8,13 +7,11 @@ local function get_path() return require("wrapped").config.path end
 ---@param args string[]
 ---@return string[] result
 local function exec_git(args)
-  local job = Job:new {
-    command = "git",
-    args = args,
-    cwd = get_path(),
-  }
-  job:sync()
-  return job:result()
+  local result = vim
+    .system({ "git", unpack(args) }, { cwd = get_path(), text = true })
+    :wait()
+  if result.code ~= 0 then return {} end
+  return vim.split(result.stdout, "\n", { trimempty = true })
 end
 
 ---@return string[] commits
@@ -167,13 +164,13 @@ function M.get_size_history()
   if vim.tbl_isempty(log) then return { values = {}, labels = {} } end
 
   -- get the empty tree hash for this repo
-  local empty = Job:new {
-    command = "git",
-    args = { "hash-object", "-t", "tree", "/dev/null" },
-    cwd = get_path(),
-  }
-  empty:sync()
-  local empty_tree = (empty:result()[1] or ""):match "%S+" ---@type string
+  local empty = vim
+    .system(
+      { "git", "hash-object", "-t", "tree", "/dev/null" },
+      { cwd = get_path(), text = true }
+    )
+    :wait()
+  local empty_tree = (empty.stdout or ""):match "%S+" ---@type string
 
   -- sample ~20 evenly spaced commits
   local samples = {} ---@type string[]

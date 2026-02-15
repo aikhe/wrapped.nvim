@@ -13,18 +13,27 @@ function M.get_stats()
     smallest = { name = "", lines = math.huge },
     lines_by_type = {},
   }
-  local files = require("plenary.scandir").scan_dir( ---@type string[]
-    config_path,
-    { hidden = true, add_dirs = false, respect_gitignore = false, depth = 20 }
-  )
   local excluded = {} ---@type table<string, boolean>
   for _, ext in ipairs(require("wrapped").config.exclude_filetype or {}) do
     excluded[ext] = true
   end
 
-  for _, path in ipairs(files) do
+  ---@param dir string
+  ---@param cb function(path: string, name: string)
+  local function walk_dir(dir, cb)
+    for name, type in vim.fs.dir(dir) do
+      local path = vim.fs.joinpath(dir, name)
+      if type == "directory" and name ~= ".git" then
+        walk_dir(path, cb)
+      elseif type == "file" then
+        cb(path, name)
+      end
+    end
+  end
+
+  walk_dir(config_path, function(path, name)
     if not (path:match "%.git[/\\]" or path:match "%.git$") then
-      local filename = vim.fn.fnamemodify(path, ":t")
+      local filename = vim.fn.fnamemodify(name, ":t")
       local ext = filename:match "^%." and filename
         or vim.fn.fnamemodify(filename, ":e")
       ext = (ext == "" and "no ext" or ext):lower()
@@ -39,7 +48,8 @@ function M.get_stats()
           f:close()
 
           stats.total_lines = stats.total_lines + lines
-          local rel_name = path:sub(#config_path + 2)
+
+          local rel_name = name
           if lines > stats.biggest.lines then
             stats.biggest = { name = rel_name, lines = lines }
           end
@@ -50,7 +60,7 @@ function M.get_stats()
         end
       end
     end
-  end
+  end)
 
   if stats.smallest.lines == math.huge then
     stats.smallest = { name = "None", lines = 0 }

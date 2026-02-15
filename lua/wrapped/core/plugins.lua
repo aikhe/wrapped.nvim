@@ -1,6 +1,5 @@
 ---@class Wrapped.Core.Plugins
 local M = {}
-local Job = require "plenary.job"
 
 local function get_path() return require("wrapped").config.path end
 
@@ -12,9 +11,9 @@ end
 
 ---@return Wrapped.PluginHistory plugin_history
 function M.get_history()
-  local job = Job:new {
-    command = "git",
-    args = {
+  local result = vim
+    .system({
+      "git",
       "log",
       "-p",
       "--reverse",
@@ -22,12 +21,10 @@ function M.get_history()
       "--date=iso",
       "--",
       "lua/plugins",
-    },
-    cwd = get_path(),
-  }
-
-  job:sync()
-  local lines = job:result() ---@type string[]
+    }, { cwd = get_path(), text = true })
+    :wait()
+  if result.code ~= 0 then return { total_ever_installed = 0 } end
+  local lines = vim.split(result.stdout, "\n", { trimempty = true })
 
   ---@type table<string, string>, string|nil, integer
   local seen, cur_date, total_ever = {}, nil, 0
@@ -57,22 +54,19 @@ function M.get_history()
     for _, plugin in pairs(plugins) do
       if plugin.dir and vim.fn.isdirectory(plugin.dir) == 1 then
         total = total + 1
-        Job
-          :new({
-            command = "git",
-            args = { "log", "-1", "--format=%at" },
-            cwd = plugin.dir,
-            on_exit = function(j, code)
-              if code == 0 then
-                local res = j:result() --[[@as string[]\]]
-                if res[1] then
-                  timestamps[plugin.name] = tonumber(res[1], 10)
-                end
-              end
-              completed = completed + 1
-            end,
-          })
-          :start()
+        vim.system(
+          { "git", "log", "-1", "--format=%at" },
+          { cwd = plugin.dir, text = true },
+
+          ---@param out vim.SystemCompleted
+          function(out)
+            if out.code == 0 then
+              local ts = tonumber(vim.trim(out.stdout), 10)
+              if ts then timestamps[plugin.name] = ts end
+            end
+            completed = completed + 1
+          end
+        )
       end
     end
 

@@ -22,7 +22,7 @@ Visualize and review your Neovim configuration activity with stats, insights, hi
 
 **Requirements**:
 
-- **Neovim** >= 0.9.0
+- **Neovim** >= 0.10.0
 - [`nvzone/volt`](https://github.com/nvzone/volt) (UI framework dependency)
 - A [Nerd Font](https://www.nerdfonts.com/) (for icons)
 
@@ -31,7 +31,7 @@ Visualize and review your Neovim configuration activity with stats, insights, hi
 ```lua
 {
   "aikhe/wrapped.nvim",
-  dependencies = { "nvzone/volt", "nvim-lua/plenary.nvim" },
+  dependencies = { "nvzone/volt" },
   cmd = { "NvimWrapped" },
   opts = {},
 }
@@ -78,12 +78,9 @@ require("wrapped").setup({
 
 > **Note**: Lots of inneffiency since im mostly new to this stuff and still learning but I'll make sure to iterate on it and make better changes.
 
-- **Git Analytics**: Aggregates history via `git log` and `git rev-list`. Streaks are calculated by tracking consecutive days with commit activity. The "Config Size" chart samples your commit history and performs a `git diff --shortstat` against an empty tree at each point to estimate line growth.
+- **Git Analytics**: Aggregates history via standard Git CLI commands (e.g., `git log`, `git rev-list`) executed using `vim.system` API. The "Config Size" chart samples your commit history and performs a `git diff --shortstat` against an empty tree at each point to estimate line growth.
 - **Plugin Tracking**:
-  - **Current**: Interface directly with the `lazy.nvim` API for active plugin counts.
-  - **Total Ever**: Scans `git log` patches for new plugin definitions (specifically within `lua/plugins`) to estimate how many unique plugins you've tried.
-  - **Age**: Inspects the local git history of each installed plugin to find the oldest and newest additions to your current setup.
-- **File Analysis**: Recursively scans your configuration directory using `plenary.scandir`. It parses files to calculate total line counts, distribution by file extension (e.g., Lua, Vim, Markdown), and identifies your largest/smallest configuration files.
-- **Plenary Integration**:
-  - **Async Operations**: Leverages `plenary.job` to run git operations in parallel when fetching plugin ages, using `vim.wait` for non-blocking synchronization.
-  - **Performance**: Utilizes `plenary.scandir` for efficient file system parsing and `plenary.job` for all external git process management.
+  - **Current**: Interfaces directly with the `lazy.stats()` API for active plugin counts.
+  - **Total Ever**: Scans `git log` patches for new plugin definitions (specifically within `lua/plugins`) using `vim.system` to estimate how many unique plugins you've tried.
+  - **Age**: Inspects the local git history of each installed plugin in parallel using `vim.system` callbacks to find the oldest and newest additions to your current setup.
+- **File Analysis**: Recursively scans your configuration directory using native Neovim APIs (`vim.fs.dir`). It parses files to calculate total line counts, distribution by file extension, and identifies your largest/smallest configuration files.

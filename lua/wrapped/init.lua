@@ -10,10 +10,10 @@ function M.setup(opts)
 end
 
 function M.run()
-  local git = require "wrapped.core.git"
-  local plugins = require "wrapped.core.plugins"
-  local files = require "wrapped.core.files"
-  local state = require "wrapped.state"
+  local git = require "wrapped.core.git" ---@type Wrapped.Core.Git
+  local plugins = require "wrapped.core.plugins" ---@type Wrapped.Core.Plugins
+  local files = require "wrapped.core.files" ---@type Wrapped.Core.Files
+  local state = require "wrapped.state" ---@type Wrapped.State
 
   require("wrapped.ui.ui").open(
     git.get_commits(),
