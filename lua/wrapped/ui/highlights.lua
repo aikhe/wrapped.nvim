@@ -12,7 +12,7 @@ local function get_bg()
   if vim.g.base46_cache then
     return dofile(vim.g.base46_cache .. "colors").black
   end
-  return get_hl("Normal").bg
+  return get_hl("NormalFloat").bg
 end
 
 -- 4 base colors cycling across months
@@ -23,7 +23,7 @@ function M.apply_float(ns)
   local config = require("wrapped").config
   local bg = get_bg()
   local win_bg = config.border and bg or lighten(bg, 2) ---@type string
-  local text_light = get_hl("Normal").fg ---@type string
+  local text_light = get_hl("NormalFloat").fg ---@type string
   local border_bg = config.border and "NONE" or win_bg ---@type string
   local border_fg = config.border and lighten(bg, 15) or win_bg ---@type string
   local title_fg = get_hl("ExBlue").fg
