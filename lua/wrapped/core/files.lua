@@ -1,28 +1,29 @@
+---@class Wrapped.Core.Files
 local M = {}
-local scandir = require "plenary.scandir"
 
+---@return string path
 local function get_path() return require("wrapped").config.path end
 
----@return Wrapped.FileStats
+---@return Wrapped.FileStats stats
 function M.get_stats()
   local config_path = get_path()
-  local stats = {
+  local stats = { ---@type Wrapped.FileStats
     total_lines = 0,
     biggest = { name = "", lines = 0 },
     smallest = { name = "", lines = math.huge },
     lines_by_type = {},
   }
-  local files = scandir.scan_dir(
+  local files = require("plenary.scandir").scan_dir( ---@type string[]
     config_path,
     { hidden = true, add_dirs = false, respect_gitignore = false, depth = 20 }
   )
-  local excluded = {}
+  local excluded = {} ---@type table<string, boolean>
   for _, ext in ipairs(require("wrapped").config.exclude_filetype or {}) do
     excluded[ext] = true
   end
 
   for _, path in ipairs(files) do
-    if not path:match "%.git[/\\]" and not path:match "%.git$" then
+    if not (path:match "%.git[/\\]" or path:match "%.git$") then
       local filename = vim.fn.fnamemodify(path, ":t")
       local ext = filename:match "^%." and filename
         or vim.fn.fnamemodify(filename, ":e")
@@ -55,7 +56,7 @@ function M.get_stats()
     stats.smallest = { name = "None", lines = 0 }
   end
 
-  local sorted = {}
+  local sorted = {} ---@type Wrapped.FileStat[]
   for k, v in pairs(stats.lines_by_type) do
     table.insert(sorted, { name = k, lines = v })
   end
