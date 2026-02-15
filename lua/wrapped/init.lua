@@ -1,9 +1,10 @@
+---@class Wrapped
 local M = {}
 
----@type Wrapped.Config
-M.config = require("wrapped.config").defaults
+---@type WrappedConfig
+M.config = require("wrapped.config").defaults()
 
----@param opts Wrapped.Config?
+---@param opts? WrappedConfig
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 end

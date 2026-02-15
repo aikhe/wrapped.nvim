@@ -5,43 +5,67 @@ local highlights = require "wrapped.ui.highlights"
 local state = require "wrapped.state"
 local git = require "wrapped.core.git"
 
-local M = {}
-local ui_state =
-  { buf = nil, win = nil, ns = api.nvim_create_namespace "WrappedUI" }
+---@class Wrapped.UiState
+---@field buf integer|nil
+---@field win integer|nil
+---@field ns integer
+---@field commit_activity? table<string, integer>
 
+---@class Wrapped.SizeHistory
+---@field values integer[]
+---@field labels string[]
+
+---@class Wrapped.Ui
+local M = {}
+local ui_state = { ---@type Wrapped.UiState
+  buf = nil,
+  win = nil,
+  ns = api.nvim_create_namespace "WrappedUI",
+}
+
+---@return WrappedConfig config
 local function get_config() return require("wrapped").config end
 
 local function close()
-  if ui_state.win and api.nvim_win_is_valid(ui_state.win) then
-    api.nvim_win_close(ui_state.win, true)
-  end
-  if ui_state.buf and api.nvim_buf_is_valid(ui_state.buf) then
-    api.nvim_buf_delete(ui_state.buf, { force = true })
+  if ui_state.win then pcall(api.nvim_win_close, ui_state.win, true) end
+  if ui_state.buf then
+    pcall(api.nvim_buf_delete, ui_state.buf, { force = true })
   end
   ui_state.win, ui_state.buf = nil, nil
 end
 
-local function dd(n) return n > 9 and tostring(n) or "0" .. n end
+---@param n integer
+---@return string dd
+local function dd(n) return (n > 9 and tostring(n) or "0") .. n end
 
+---@param str string
+---@param max integer
+---@return string str
 local function truncate(str, max)
-  if #str > max then return str:sub(1, max - 3) .. "..." end
+  if str:len() > max then return str:sub(1, max - 3) .. "..." end
   return str
 end
 
 -- wraps text into multiple lines of max width
+---@param str string
+---@param max integer
+---@param hl? string
+---@return string[][][] lines
 local function wrap_lines(str, max, hl)
-  local result = {}
-  while #str > max do
+  local result = {} ---@type string[][][]
+  while str:len() > max do
     local cut = str:sub(1, max)
     local space = cut:match ".*()%s" or max
     table.insert(result, { { str:sub(1, space), hl or "Normal" } })
     str = str:sub(space + 1):gsub("^%s+", "")
   end
-  if #str > 0 then table.insert(result, { { str, hl or "Normal" } }) end
+  if str:len() > 0 then table.insert(result, { { str, hl or "Normal" } }) end
   return result
 end
 
 -- returns intensity index 0 (brightest) to 3 (dimmest)
+---@param n integer
+---@return "0"|"1"|"2"|"3" intensity
 local function get_intensity(n)
   if n > 5 then return "0" end
   if n > 2 then return "1" end
@@ -55,8 +79,13 @@ local color_cycle = vim.list_extend(
   vim.list_extend(vim.list_extend({}, month_colors), month_colors)
 )
 
+---@param y integer
+---@return boolean leap
 local function is_leap(y) return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0) end
 
+---@param activity table<string, integer>
+---@param width integer
+---@return string[][][] heatmap
 local function build_heatmap(activity, width)
   local year = state.heatmap_year
   local months = {
@@ -78,15 +107,17 @@ local function build_heatmap(activity, width)
   local day_names = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
 
   -- month header row with per-month color
+  ---@type string[][]
   local header = { { "   ", "Comment" }, { "  " } }
   for i = 1, 12 do
     table.insert(header, { "  " .. months[i] .. "  ", "Ex" .. color_cycle[i] })
     if i < 12 then table.insert(header, { " " }) end
   end
 
+  ---@type string[][]
   local sep =
     voltui.separator("─", width - (state.xpad or 0) * 2 - 4, "Comment")
-  local lines = { header, sep }
+  local lines = { header, sep } ---@type string[][][]
 
   -- 7 weekday rows
   for d = 1, 7 do
@@ -96,7 +127,8 @@ local function build_heatmap(activity, width)
   -- fill grid per month
   for m = 1, 12 do
     local start_dow = tonumber(
-      os.date("%w", os.time { year = year, month = m, day = 1 })
+      os.date("%w", os.time { year = year, month = m, day = 1 }),
+      10
     ) + 1
 
     if m == 1 then
@@ -110,8 +142,7 @@ local function build_heatmap(activity, width)
       local dow = tonumber(
         os.date("%w", os.time { year = year, month = m, day = day })
       ) + 1
-      local key = dd(day) .. dd(m) .. year
-      local count = activity[key] or 0
+      local count = activity[dd(day) .. dd(m) .. year] or 0
       local hl = count > 0 and ("Wrapped" .. color .. get_intensity(count))
         or "Linenr"
       table.insert(lines[dow + 2], { "󱓻 ", hl })
@@ -121,7 +152,7 @@ local function build_heatmap(activity, width)
   voltui.border(lines, "Comment")
 
   -- legend with green levels (matching typr)
-  local legend = {
+  local legend = { ---@type string[][]
     { " Commit Activity", "WrappedGreen0" },
     { "  " },
     { "« ", "Comment" },
@@ -139,6 +170,9 @@ local function build_heatmap(activity, width)
   return lines
 end
 
+---@param size_history Wrapped.SizeHistory
+---@param target_width integer
+---@return string[][][] size_chart
 local function build_size_chart(size_history, target_width)
   local vals = size_history.values
   if #vals == 0 then return {} end
@@ -147,7 +181,7 @@ local function build_size_chart(size_history, target_width)
   if max_val == 0 then max_val = 1 end
 
   -- normalize to 1-100 scale for bar graph
-  local scaled = {}
+  local scaled = {} ---@type integer[]
   for _, v in ipairs(vals) do
     table.insert(scaled, math.floor((v / max_val) * 100))
   end
@@ -176,7 +210,7 @@ local function build_size_chart(size_history, target_width)
     baropts = {
       w = bar_w,
       gap = bar_gap,
-      format_hl = function(x)
+      format_hl = function(x) ---@param x integer
         if x > 85 then return "WrappedGreen0" end
         if x > 60 then return "WrappedGreen1" end
         if x > 30 then return "WrappedGreen2" end
@@ -185,7 +219,7 @@ local function build_size_chart(size_history, target_width)
     },
   }
 
-  local chart = voltui.graphs.bar(chart_data)
+  local chart = voltui.graphs.bar(chart_data) ---@type string[][][]
 
   return chart
 end
@@ -202,10 +236,16 @@ local function build_stats_bars(
   local barlen = math.floor((width - 2) / 2)
   local table_w = math.floor((barlen - 2) / 2)
 
+  ---@param label string
+  ---@param val? integer
+  ---@param goal integer
+  ---@param icon string
+  ---@param hl string
+  ---@return string[][][] bar
   local function build_bar(label, val, goal, icon, hl)
     val = val or 0
     local perc = math.min(math.floor((val / goal) * 100), 100)
-    return {
+    return { ---@type string[][][]
       {
         { icon .. " ", hl },
         { label .. " ~ ", hl },
@@ -250,6 +290,9 @@ local function build_stats_bars(
   }
 end
 
+---@param plugin_history Wrapped.PluginHistory
+---@param file_stats Wrapped.FileStats
+---@return string[][][] plugins_files
 local function build_plugins_files_table(plugin_history, file_stats)
   local width = get_config().size.width - (state.xpad or 0) * 2
   local barlen = math.floor((width - 2) / 2)
@@ -258,7 +301,7 @@ local function build_plugins_files_table(plugin_history, file_stats)
   local function build_plugin_table(title, name, date)
     local truncated_name = truncate(name or "None", table_w - 2)
     local info_date = date and os.date("%Y-%m-%d", date) or "None"
-    local data = {
+    local data = { ---@type string[][][][]
       { { { truncated_name, "Normal" } } },
       { { { info_date, "Comment" } } },
     }
@@ -292,7 +335,7 @@ local function build_plugins_files_table(plugin_history, file_stats)
   local b_lines = tostring(file_stats.biggest.lines or 0) .. " lines"
   local s_lines = tostring(file_stats.smallest.lines or 0) .. " lines"
 
-  local file_tbl_data = {
+  local file_tbl_data = { ---@type string[][][][]
     { { { b_name, "Normal" }, { " - ", "Comment" }, { b_lines, "Comment" } } },
     { { { s_name, "Normal" }, { " - ", "Comment" }, { s_lines, "Comment" } } },
   }
@@ -310,8 +353,11 @@ local function build_plugins_files_table(plugin_history, file_stats)
   }
 end
 
+---@param file_stats Wrapped.FileStats
+---@param width integer
+---@return string[][][] top_files
 local function build_top_files_table(file_stats, width)
-  local data = { { "  File Extension", "󰅪  Total Lines" } }
+  local data = { { "  File Extension", "󰅪  Total Lines" } } ---@type string[][]
   for i, stat in ipairs(file_stats.lines_by_type) do
     if i > 5 then break end
     table.insert(data, { stat.name, tostring(stat.lines) })
@@ -324,6 +370,24 @@ local function build_top_files_table(file_stats, width)
   )
 end
 
+---@param lines string[][][]
+---@param text string
+---@param hl? string
+---@return string[][][] lines
+local function add(lines, text, hl)
+  table.insert(lines, { { text, hl or "Special" } })
+  return lines
+end
+
+---@param commits string[]
+---@param total_count integer
+---@param plugin_count integer
+---@param first_commit_date string
+---@param file_stats Wrapped.FileStats
+---@param plugin_history Wrapped.PluginHistory
+---@param config_stats Wrapped.ConfigStats
+---@param commit_activity table<string, integer>
+---@param size_history Wrapped.SizeHistory
 local function build_content(
   commits,
   total_count,
@@ -336,9 +400,6 @@ local function build_content(
   size_history
 )
   local lines = {}
-  local function add(text, hl)
-    table.insert(lines, { { text, hl or "Special" } })
-  end
 
   vim.list_extend(
     lines,
@@ -349,8 +410,7 @@ local function build_content(
       file_stats.total_lines
     )
   )
-  add(" ", "")
-  add(" ", "")
+  lines = add(add(lines, " ", ""), " ", "")
 
   vim.list_extend(lines, build_plugins_files_table(plugin_history, file_stats))
 
@@ -387,11 +447,11 @@ local function build_content(
       build_heatmap(ui_state.commit_activity, get_config().size.width)
     )
   end
-  add(" ", "")
+  lines = add(lines, " ", "")
 
   local inner_w = get_config().size.width - (state.xpad or 0) * 2
-  add("  Commit Messages", "WrappedRed0")
-  add(" ", "")
+  lines = add(lines, "  Commit Messages", "WrappedRed0")
+  lines = add(lines, " ", "")
   table.insert(lines, {
     { "Shortest: ", "WrappedRed0" },
     { config_stats.shortest_msg, "WrappedLabel" },
@@ -399,7 +459,7 @@ local function build_content(
 
   local long_prefix = "Longest: "
   -- wrap narrower to account for prefix and padding
-  local wrap_w = inner_w - #long_prefix - 1
+  local wrap_w = inner_w - long_prefix:len() - 1
 
   local long_lines =
     wrap_lines(config_stats.longest_msg, wrap_w, "WrappedLabel")
@@ -409,11 +469,11 @@ local function build_content(
     table.insert(long_lines, { { long_prefix, "WrappedRed0" } })
   end
   vim.list_extend(lines, long_lines)
-  add(" ", "")
+  lines = add(lines, " ", "")
 
   -- random commits
-  add(" Random Commits", "WrappedBlue0")
-  add(" ", "")
+  lines = add(lines, " Random Commits", "WrappedBlue0")
+  lines = add(lines, " ", "")
   for _, commit in ipairs(commits) do
     vim.list_extend(lines, wrap_lines(commit, inner_w))
   end
@@ -426,7 +486,7 @@ local function build_content(
   local left_w = math.floor((width - 2) / 2)
   local right_w = width - left_w - 2
 
-  local left_col = {}
+  local left_col = {} ---@type string[][][]
   if size_history and #size_history.values > 0 then
     left_col = build_size_chart(size_history, left_w)
     -- Add padding to align with table (2 lines)
@@ -461,14 +521,14 @@ local function refresh_heatmap()
 end
 
 ---@param commits string[]
----@param total_count number|string
----@param plugin_count number
+---@param total_count integer|string
+---@param plugin_count integer
 ---@param first_commit_date string
 ---@param file_stats Wrapped.FileStats
 ---@param plugin_history Wrapped.PluginHistory
 ---@param config_stats Wrapped.ConfigStats
----@param commit_activity table<string, number>
----@param size_history { values: number[], labels: string[] }
+---@param commit_activity table<string, integer>
+---@param size_history Wrapped.SizeHistory
 function M.open(
   commits,
   total_count,
@@ -515,23 +575,27 @@ function M.open(
   highlights.apply_float(ui_state.ns)
   api.nvim_win_set_hl_ns(ui_state.win, ui_state.ns)
 
-  local function get_content()
-    return build_content(
-      commits,
-      total_count,
-      plugin_count,
-      first_commit_date,
-      file_stats,
-      plugin_history,
-      config_stats,
-      commit_activity,
-      size_history
-    )
-  end
   volt.gen_data {
     {
       buf = ui_state.buf,
-      layout = { { lines = get_content, name = "git_log" } },
+      layout = {
+        {
+          lines = function()
+            return build_content(
+              commits,
+              total_count,
+              plugin_count,
+              first_commit_date,
+              file_stats,
+              plugin_history,
+              config_stats,
+              commit_activity,
+              size_history
+            )
+          end,
+          name = "git_log",
+        },
+      },
       xpad = state.xpad,
       ns = ui_state.ns,
     },
@@ -559,7 +623,7 @@ function M.open(
   api.nvim_buf_set_keymap(buf, "n", "<Esc>", "", map_opts)
 
   -- year cycling keymaps
-  local cur_year = tonumber(os.date "%Y")
+  local cur_year = tonumber(os.date "%Y", 10)
   local function cycle_year(delta)
     local new_year = state.heatmap_year + delta
     if new_year < state.first_commit_year or new_year > cur_year then return end
@@ -568,15 +632,15 @@ function M.open(
     volt.redraw(buf, "git_log")
   end
 
-  api.nvim_buf_set_keymap(buf, "n", "<", "", {
+  vim.keymap.set("n", "<", function() cycle_year(-1) end, {
     noremap = true,
+    buffer = buf,
     silent = true,
-    callback = function() cycle_year(-1) end,
   })
-  api.nvim_buf_set_keymap(buf, "n", ">", "", {
+  vim.keymap.set("n", ">", function() cycle_year(1) end, {
     noremap = true,
+    buffer = buf,
     silent = true,
-    callback = function() cycle_year(1) end,
   })
 end
 
