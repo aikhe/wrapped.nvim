@@ -1,11 +1,8 @@
 local api = vim.api
 local highlights = require "wrapped.ui.highlights"
-local state_config = require "wrapped.state"
 
----@class Wrapped.Loading
 local M = {}
-
-local state = { ---@type Wrapped.LoadingState
+local state = {
   buf = nil,
   win = nil,
   timer = nil,
@@ -20,27 +17,22 @@ function M.open()
   if state.win and api.nvim_win_is_valid(state.win) then return end
 
   local config = require("wrapped").config
+  local wstate = require "wrapped.state"
   state.buf = api.nvim_create_buf(false, true)
 
   local text = "Loading Wrapped"
-  local xpad = state_config.xpad or 2
-  local ypad = state_config.ypad or 1
-
-  local width = #text + 4 + (xpad * 2)
-  local height = 1 + (ypad * 2)
-  local row = math.floor((vim.o.lines - height) / 2) - 1
-  local col = math.floor((vim.o.columns - width) / 2)
-
+  local x, y = wstate.xpad or 2, wstate.ypad or 1
+  local w, h = #text + 4 + (x * 2) - 1, 1 + (y * 2)
   local border_opts = (type(config.border) == "string" and config.border)
     or (config.border and "single")
     or "none"
 
   state.win = api.nvim_open_win(state.buf, false, {
     relative = "editor",
-    row = row,
-    col = col,
-    width = width,
-    height = height,
+    width = w,
+    height = h,
+    row = math.floor((vim.o.lines - h) / 2) - 1,
+    col = math.floor((vim.o.columns - w) / 2),
     style = "minimal",
     border = border_opts,
     zindex = 200,
@@ -49,46 +41,37 @@ function M.open()
   highlights.apply_float(state.ns)
   api.nvim_win_set_hl_ns(state.win, state.ns)
 
-  local function update_text()
-    if not state.buf or not api.nvim_buf_is_valid(state.buf) then return end
-
-    local frame = frames[state.index]
-    local pad_str = string.rep(" ", xpad)
-    local line_text = pad_str .. text .. " " .. frame .. pad_str
-
-    if #line_text < width then
-      line_text = line_text .. string.rep(" ", width - #line_text)
-    end
-
-    local lines = {}
-    for _ = 1, ypad do
-      table.insert(lines, string.rep(" ", width))
-    end
-    table.insert(lines, line_text)
-    for _ = 1, ypad do
-      table.insert(lines, string.rep(" ", width))
-    end
-
-    api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
-
-    -- hl
-    api.nvim_buf_set_extmark(state.buf, state.ns, ypad, xpad, {
-      end_col = xpad + #text,
-      hl_group = "WrappedGreen0",
-    })
-    api.nvim_buf_set_extmark(state.buf, state.ns, ypad, xpad + #text + 1, {
-      end_col = xpad + #text + 1 + #frame,
-      hl_group = "WrappedGreen0",
-    })
+  local pad, blank = string.rep(" ", x), string.rep(" ", w)
+  local lines = {}
+  for _ = 1, y do
+    table.insert(lines, blank)
   end
+  table.insert(lines, "")
+  for _ = 1, y do
+    table.insert(lines, blank)
+  end
+  api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 
   state.timer = vim.uv.new_timer()
   state.timer:start(
     0,
     80,
     vim.schedule_wrap(function()
+      if not state.buf or not api.nvim_buf_is_valid(state.buf) then return end
       state.index = (state.index % #frames) + 1
-      update_text()
+      local frame = frames[state.index]
+      api.nvim_buf_set_lines(
+        state.buf,
+        y,
+        y + 1,
+        false,
+        { pad .. text .. " " .. frame .. pad }
+      )
+      api.nvim_buf_set_extmark(state.buf, state.ns, y, x, {
+        id = 1,
+        end_col = x + #text + #frame,
+        hl_group = "WrappedGreen0",
+      })
     end)
   )
 end
