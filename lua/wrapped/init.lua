@@ -1,3 +1,10 @@
+local loading = require "wrapped.ui.loading"
+
+local git = require "wrapped.core.git"
+local plugins = require "wrapped.core.plugins"
+local files = require "wrapped.core.files"
+local state = require "wrapped.state"
+
 ---@class Wrapped
 local M = {}
 
@@ -10,22 +17,45 @@ function M.setup(opts)
 end
 
 function M.run()
-  local git = require "wrapped.core.git" ---@type Wrapped.Core.Git
-  local plugins = require "wrapped.core.plugins" ---@type Wrapped.Core.Plugins
-  local files = require "wrapped.core.files" ---@type Wrapped.Core.Files
-  local state = require "wrapped.state" ---@type Wrapped.State
+  ---@type Wrapped.Results
+  local results = {}
+  local total = 3
+  local completed = 0
 
-  require("wrapped.ui.ui").open(
-    git.get_commits(),
-    git.get_total_count(),
-    plugins.get_count(),
-    git.get_first_commit_date(),
-    files.get_stats(),
-    plugins.get_history(),
-    git.get_config_stats(),
-    git.get_commit_activity(state.heatmap_year),
-    git.get_size_history()
-  )
+  loading.open()
+
+  local function check_done()
+    completed = completed + 1
+    if completed == total then
+      require("wrapped.ui.ui").open(
+        results.git.commits,
+        results.git.total_count,
+        plugins.get_count(),
+        results.git.first_commit_date,
+        results.files,
+        results.plugins,
+        results.git.config_stats,
+        results.git.commit_activity,
+        results.git.size_history
+      )
+      loading.close()
+    end
+  end
+
+  git.get_all_data_async(state.heatmap_year, function(data)
+    results.git = data
+    check_done()
+  end)
+
+  files.get_stats_async(function(stats)
+    results.files = stats
+    check_done()
+  end)
+
+  plugins.get_history_async(function(history)
+    results.plugins = history
+    check_done()
+  end)
 end
 
 return M

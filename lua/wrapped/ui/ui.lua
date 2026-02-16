@@ -3,17 +3,6 @@ local volt = require "volt"
 local voltui = require "volt.ui"
 local highlights = require "wrapped.ui.highlights"
 local state = require "wrapped.state"
-local git = require "wrapped.core.git"
-
----@class Wrapped.UiState
----@field buf integer|nil
----@field win integer|nil
----@field ns integer
----@field commit_activity? table<string, integer>
-
----@class Wrapped.SizeHistory
----@field values integer[]
----@field labels string[]
 
 ---@class Wrapped.Ui
 local M = {}
@@ -36,7 +25,7 @@ end
 
 ---@param n integer
 ---@return string dd
-local function dd(n) return (n > 9 and tostring(n) or "0") .. n end
+local function dd(n) return n < 10 and "0" .. n or tostring(n) end
 
 ---@param str string
 ---@param max integer
@@ -153,7 +142,7 @@ local function build_heatmap(activity, width)
 
   -- legend with green levels (matching typr)
   local legend = { ---@type string[][]
-    { " Commit Activity", "WrappedGreen0" },
+    { "  Commit Activity", "WrappedGreen0" },
     { "  " },
     { "« ", "Comment" },
     { tostring(year), "Special" },
@@ -300,7 +289,11 @@ local function build_plugins_files_table(plugin_history, file_stats)
 
   local function build_plugin_table(title, name, date)
     local truncated_name = truncate(name or "None", table_w - 2)
-    local info_date = date and os.date("%Y-%m-%d", date) or "None"
+    local info_date = date
+        and (
+          os.date("%Y-%m-%d", date) --[[@as string]]
+        )
+      or "None"
     local data = { ---@type string[][][][]
       { { { truncated_name, "Normal" } } },
       { { { info_date, "Comment" } } },
@@ -380,13 +373,12 @@ local function add(lines, text, hl)
 end
 
 ---@param commits string[]
----@param total_count integer
+---@param total_count integer|string
 ---@param plugin_count integer
 ---@param first_commit_date string
 ---@param file_stats Wrapped.FileStats
 ---@param plugin_history Wrapped.PluginHistory
 ---@param config_stats Wrapped.ConfigStats
----@param commit_activity table<string, integer>
 ---@param size_history Wrapped.SizeHistory
 local function build_content(
   commits,
@@ -396,7 +388,6 @@ local function build_content(
   file_stats,
   plugin_history,
   config_stats,
-  commit_activity,
   size_history
 )
   local lines = {}
@@ -516,8 +507,26 @@ local function build_content(
 end
 
 -- refreshes heatmap data and redraws
-local function refresh_heatmap()
-  ui_state.commit_activity = git.get_commit_activity(state.heatmap_year)
+local function refresh_heatmap(buf)
+  vim.system(
+    { "git", "log", "--format=%ad", "--date=short" },
+    { cwd = require("wrapped").config.path, text = true },
+    function(out)
+      vim.schedule(function()
+        local lines = vim.split(out.stdout or "", "\n", { trimempty = true })
+        local counts = {}
+        for _, d in ipairs(lines) do
+          local y, m, day = d:match "(%d+)-(%d+)-(%d+)"
+          if y == tostring(state.heatmap_year) then
+            local key = day .. m .. y
+            counts[key] = (counts[key] or 0) + 1
+          end
+        end
+        ui_state.commit_activity = counts
+        volt.redraw(buf, "git_log")
+      end)
+    end
+  )
 end
 
 ---@param commits string[]
@@ -546,7 +555,8 @@ function M.open(
   end
 
   -- store for year cycling
-  state.first_commit_year = git.get_first_commit_year()
+  state.first_commit_year =
+    tonumber(first_commit_date:match "(%d+)" or os.date "%Y", 10)
   ui_state.commit_activity = commit_activity
 
   local config = get_config()
@@ -566,7 +576,7 @@ function M.open(
     width = w,
     height = h,
     style = "minimal",
-    border = border_opts,
+    border = border_opts --[[@as string|string[] ]],
     zindex = 100,
   })
 
@@ -589,7 +599,6 @@ function M.open(
               file_stats,
               plugin_history,
               config_stats,
-              commit_activity,
               size_history
             )
           end,
@@ -611,13 +620,13 @@ function M.open(
       col = col,
       width = w,
       height = new_h,
-      border = border_opts,
+      border = border_opts --[[@as string|string[] ]],
     })
   end
 
   volt.run(ui_state.buf, { h = content_h, w = w })
 
-  local buf = ui_state.buf
+  local buf = ui_state.buf --[[@as integer]]
   local map_opts = { noremap = true, silent = true, callback = close }
   api.nvim_buf_set_keymap(buf, "n", "q", "", map_opts)
   api.nvim_buf_set_keymap(buf, "n", "<Esc>", "", map_opts)
@@ -628,8 +637,7 @@ function M.open(
     local new_year = state.heatmap_year + delta
     if new_year < state.first_commit_year or new_year > cur_year then return end
     state.heatmap_year = new_year
-    refresh_heatmap()
-    volt.redraw(buf, "git_log")
+    refresh_heatmap(buf)
   end
 
   vim.keymap.set("n", "<", function() cycle_year(-1) end, {

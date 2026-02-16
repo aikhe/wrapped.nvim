@@ -9,84 +9,102 @@ function M.get_count()
   return (ok and lazy) and lazy.stats().count or 0
 end
 
----@return Wrapped.PluginHistory plugin_history
-function M.get_history()
-  local result = vim
-    .system({
-      "git",
-      "log",
-      "-p",
-      "--reverse",
-      "--format=COMMIT_DATE:%ad",
-      "--date=iso",
-      "--",
-      "lua/plugins",
-    }, { cwd = get_path(), text = true })
-    :wait()
-  if result.code ~= 0 then return { total_ever_installed = 0 } end
-  local lines = vim.split(result.stdout, "\n", { trimempty = true })
+---@param cb fun(history: Wrapped.PluginHistory)
+function M.get_history_async(cb)
+  vim.system({
+    "git",
+    "log",
+    "-p",
+    "--reverse",
+    "--format=COMMIT_DATE:%ad",
+    "--date=iso",
+    "--",
+    "lua/plugins",
+  }, { cwd = get_path(), text = true }, function(result)
+    if result.code ~= 0 then
+      vim.schedule(function() cb { total_ever_installed = 0 } end)
+      return
+    end
 
-  ---@type table<string, string>, string|nil, integer
-  local seen, cur_date, total_ever = {}, nil, 0
+    local lines = vim.split(result.stdout or "", "\n", { trimempty = true })
+    local seen, cur_date, total_ever = {}, nil, 0
 
-  for _, line in ipairs(lines) do
-    if line:match "^COMMIT_DATE:" then
-      cur_date = line:match "^COMMIT_DATE:(%d+%-%d+%-%d+)" --[[@as string]]
-    elseif line:match "^%+" and not line:match "^%+%+%+" then
-      for plugin in line:gmatch "['\"]([%w%-%.%_]+/[%w%-%.%_]+)['\"]" do
-        if not seen[plugin] then
-          seen[plugin] = cur_date
-          total_ever = total_ever + 1
+    for _, line in ipairs(lines) do
+      if line:match "^COMMIT_DATE:" then
+        cur_date = line:match "^COMMIT_DATE:(%d+%-%d+%-%d+)"
+      elseif line:match "^%+" and not line:match "^%+%+%+" then
+        for plugin in line:gmatch "['\"]([%w%-%.%_]+/[%w%-%.%_]+)['\"]" do
+          if not seen[plugin] then
+            seen[plugin] = cur_date
+            total_ever = total_ever + 1
+          end
         end
       end
     end
-  end
 
-  ---@type string, integer, string, integer
-  local oldest, old_date, newest, new_date
-  local ok, lazy = pcall(require, "lazy")
+    local ok, lazy = pcall(require, "lazy")
+    if not (ok and lazy and lazy.plugins) then
+      vim.schedule(function() cb { total_ever_installed = total_ever } end)
+      return
+    end
 
-  if ok and lazy and lazy.plugins then
     local plugins = lazy.plugins()
-    local completed, total = 0, 0 ---@type integer, integer
-    local timestamps = {} ---@type table<string, integer>
+    local total = 0
+    local target_plugins = {}
 
-    for _, plugin in pairs(plugins) do
-      if plugin.dir and vim.fn.isdirectory(plugin.dir) == 1 then
+    for _, p in pairs(plugins) do
+      if p.dir and vim.fn.isdirectory(p.dir) == 1 then
         total = total + 1
-        vim.system(
-          { "git", "log", "-1", "--format=%at" },
-          { cwd = plugin.dir, text = true },
+        table.insert(target_plugins, p)
+      end
+    end
 
-          ---@param out vim.SystemCompleted
-          function(out)
-            if out.code == 0 then
-              local ts = tonumber(vim.trim(out.stdout), 10)
-              if ts then timestamps[plugin.name] = ts end
+    if total == 0 then
+      vim.schedule(function() cb { total_ever_installed = total_ever } end)
+      return
+    end
+
+    -- one at a time to avoid blocking the event loop
+    local timestamps = {}
+    local function process_next(i)
+      if i > total then
+        vim.schedule(function()
+          local oldest, old_date, newest, new_date
+          for name, ts in pairs(timestamps) do
+            if not old_date or ts < old_date then
+              old_date, oldest = ts, name
             end
-            completed = completed + 1
+            if not new_date or ts > new_date then
+              new_date, newest = ts, name
+            end
           end
-        )
+          cb {
+            total_ever_installed = total_ever,
+            oldest_plugin = oldest and { name = oldest, date = old_date }
+              or nil,
+            newest_plugin = newest and { name = newest, date = new_date }
+              or nil,
+          }
+        end)
+        return
       end
+
+      local p = target_plugins[i]
+      vim.system(
+        { "git", "log", "-1", "--format=%at" },
+        { cwd = p.dir, text = true },
+        function(out)
+          if out.code == 0 then
+            local ts = tonumber(vim.trim(out.stdout or ""), 10)
+            if ts then timestamps[p.name] = ts end
+          end
+          process_next(i + 1)
+        end
+      )
     end
 
-    vim.wait(5000, function() return completed >= total end)
-
-    for name, ts in pairs(timestamps) do
-      if not old_date or ts < old_date then
-        old_date, oldest = ts, name
-      end
-      if not new_date or ts > new_date then
-        new_date, newest = ts, name
-      end
-    end
-  end
-
-  return { ---@type Wrapped.PluginHistory
-    total_ever_installed = total_ever,
-    oldest_plugin = oldest and { name = oldest, date = old_date } or nil,
-    newest_plugin = newest and { name = newest, date = new_date } or nil,
-  }
+    process_next(1)
+  end)
 end
 
 return M
