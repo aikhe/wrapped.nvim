@@ -2,7 +2,7 @@
 
 ---@class WrappedConfig
 ---@field path string|nil
----@field border boolean
+---@field border boolean|string|string[]
 ---@field size { width: integer, height: integer }
 ---@field exclude_filetype string[]
 ---@field cap { commits: integer, plugins: integer, plugins_ever: integer, lines: integer }
@@ -19,6 +19,7 @@
 
 ---@class Wrapped.PluginInfo
 ---@field name string
+---@field dir? string
 ---@field date integer
 
 ---@class Wrapped.PluginHistory
@@ -32,3 +33,25 @@
 ---@field lifetime string
 ---@field shortest_msg string
 ---@field longest_msg string
+
+---@class Wrapped.SizeHistory
+---@field values integer[]
+---@field labels string[]
+
+---@class Wrapped.UiState
+---@field buf integer|nil
+---@field win integer|nil
+---@field ns integer
+---@field commit_activity? table<string, integer>
+
+---@class Wrapped.LoadingState
+---@field buf integer|nil
+---@field win integer|nil
+---@field timer uv_timer_t|nil
+---@field index integer
+---@field ns integer
+
+---@class Wrapped.Results
+---@field git? { commits: string[], total_count: string, first_commit_date: string, config_stats: Wrapped.ConfigStats, commit_activity: table<string, integer>, size_history: Wrapped.SizeHistory }
+---@field files? Wrapped.FileStats
+---@field plugins? Wrapped.PluginHistory
