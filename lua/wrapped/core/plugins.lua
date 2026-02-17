@@ -19,7 +19,7 @@ function M.get_history_async(cb)
     "--format=COMMIT_DATE:%ad",
     "--date=iso",
     "--",
-    "lua/plugins",
+    ":**/*.lua",
   }, { cwd = get_path(), text = true }, function(result)
     if result.code ~= 0 then
       vim.schedule(function() cb { total_ever_installed = 0 } end)
