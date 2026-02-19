@@ -22,6 +22,7 @@ M.month_colors = { "Red", "Green", "Blue", "Yellow" }
 ---@param ns integer
 function M.apply_float(ns)
   local config = require("wrapped").config
+
   local bg = get_bg()
   local is_transparent = not bg
   local fallback_bg = bg or "#000000"
@@ -29,11 +30,9 @@ function M.apply_float(ns)
   local win_bg_col = is_transparent and fallback_bg or bg
   local win_bg = is_transparent and "NONE"
     or (config.border and win_bg_col or lighten(win_bg_col, 2)) ---@type string?
-
   local text_light = get_hl("Normal").fg ---@type string
   local border_bg = config.border and "NONE" or win_bg ---@type string
   local border_fg = config.border and lighten(fallback_bg, 15) or win_bg_col ---@type string
-
   local title_fg = get_hl("ExBlue").fg
   local comment_fg = get_hl("Comment").fg
 

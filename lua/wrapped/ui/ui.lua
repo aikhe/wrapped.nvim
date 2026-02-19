@@ -457,6 +457,7 @@ local function build_content(
   end
   lines = add(lines, " ", "")
 
+  -- commit messages
   local inner_w = get_config().size.width - (state.xpad or 0) * 2
   lines = add(lines, "  Commit Messages", "WrappedRed0")
   lines = add(lines, " ", "")
@@ -466,16 +467,11 @@ local function build_content(
   })
 
   local long_prefix = "Longest: "
-  -- wrap narrower to account for prefix and padding
-  local wrap_w = inner_w - long_prefix:len() - 1
+  local wrap_w = inner_w - long_prefix:len() + 1
 
   local long_lines =
     wrap_lines(config_stats.longest_msg, wrap_w, "WrappedLabel")
-  if #long_lines > 0 then
-    table.insert(long_lines[1], 1, { long_prefix, "WrappedRed0" })
-  else
-    table.insert(long_lines, { { long_prefix, "WrappedRed0" } })
-  end
+  table.insert(long_lines[1], 1, { long_prefix, "WrappedRed0" })
   vim.list_extend(lines, long_lines)
   lines = add(lines, " ", "")
 
@@ -497,7 +493,7 @@ local function build_content(
   local left_col = {} ---@type string[][][]
   if size_history and #size_history.values > 0 then
     left_col = build_size_chart(size_history, left_w)
-    -- Add padding to align with table (2 lines)
+    -- size chart top padding
     for _ = 1, 2 do
       table.insert(left_col, 1, { { " ", "" } })
     end

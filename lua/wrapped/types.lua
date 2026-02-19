@@ -47,7 +47,7 @@
 ---@class Wrapped.LoadingState
 ---@field buf integer|nil
 ---@field win integer|nil
----@field timer uv_timer_t|nil
+---@field timer userdata|nil
 ---@field index integer
 ---@field ns integer
 

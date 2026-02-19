@@ -8,15 +8,14 @@ vim.api.nvim_create_user_command(
   {}
 )
 
--- vim.api.nvim_create_user_command(
---   "WrappedNvim",
---   function() require("wrapped").run() end,
---   {}
--- )
+vim.api.nvim_create_user_command(
+  "WrappedNvim",
+  function() require("wrapped").run() end,
+  {}
+)
 
--- TODO: wip
--- vim.api.nvim_create_user_command(
---   "WrappedProject",
---   function() require("wrapped").run() end,
---   {}
--- )
+vim.api.nvim_create_user_command(
+  "WrappedProject",
+  function() require("wrapped").run() end,
+  {}
+)
