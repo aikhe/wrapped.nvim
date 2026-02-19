@@ -4,6 +4,29 @@ local M = {}
 ---@return string path
 local function get_path() return require("wrapped").config.path end
 
+---@param file string
+---@return string ext
+function M._get_ext(file) return (file:match "%.([^%.]+)$" or "no ext"):lower() end
+
+---@param stats Wrapped.FileStats
+---@param excluded table<string, boolean>
+---@param file string
+---@param count integer
+function M._process_file(stats, excluded, file, count)
+  local ext = M._get_ext(file)
+  if excluded[ext] then return end
+
+  stats.total_lines = stats.total_lines + count
+  if count > stats.biggest.lines then
+    stats.biggest = { name = file, lines = count }
+  end
+  if count > 0 and count < stats.smallest.lines then
+    stats.smallest = { name = file, lines = count }
+  end
+  stats.lines_by_type[ext] = (stats.lines_by_type[ext] or 0) + count
+  table.insert(stats.top_files, { name = file, lines = count })
+end
+
 ---@param cb fun(stats: Wrapped.FileStats)
 function M.get_stats_async(cb)
   local config_path = get_path()
@@ -22,6 +45,7 @@ function M.get_stats_async(cb)
               biggest = { name = "None", lines = 0 },
               smallest = { name = "None", lines = 0 },
               lines_by_type = {},
+              top_files = {},
             }
           end
         )
@@ -46,6 +70,7 @@ function M.get_stats_async(cb)
                   biggest = { name = "", lines = 0 },
                   smallest = { name = "", lines = math.huge },
                   lines_by_type = {},
+                  top_files = {},
                 }
 
                 local excluded_config = require("wrapped").config.exclude_filetype
@@ -55,28 +80,18 @@ function M.get_stats_async(cb)
                   excluded[ext] = true
                 end
 
-                local function process_file(file, count)
-                  local ext = (file:match "%.([^%.]+)$" or "no ext"):lower()
-                  if excluded[ext] then return end
-
-                  stats.total_lines = stats.total_lines + count
-                  if count > stats.biggest.lines then
-                    stats.biggest = { name = file, lines = count }
-                  end
-                  if count > 0 and count < stats.smallest.lines then
-                    stats.smallest = { name = file, lines = count }
-                  end
-                  stats.lines_by_type[ext] = (stats.lines_by_type[ext] or 0)
-                    + count
-                end
-
                 -- parse tracked/modified
                 local diff_lines =
                   vim.split(diff_out.stdout or "", "\n", { trimempty = true })
                 for _, line in ipairs(diff_lines) do
                   local added, _, file = line:match "^(%d+)%s+(%d+)%s+(.+)$"
                   if added and file then
-                    process_file(file, tonumber(added, 10) or 0)
+                    M._process_file(
+                      stats,
+                      excluded,
+                      file,
+                      tonumber(added, 10) or 0
+                    )
                   end
                 end
 
@@ -86,6 +101,7 @@ function M.get_stats_async(cb)
                 for _, file in ipairs(untracked_files) do
                   local full_path = config_path .. "/" .. file
                   local f = io.open(full_path, "r")
+
                   if f then
                     local content = f:read "*a" or ""
                     f:close()
@@ -93,7 +109,7 @@ function M.get_stats_async(cb)
                     if content:len() > 0 and content:sub(-1) ~= "\n" then
                       count = count + 1
                     end
-                    process_file(file, count)
+                    M._process_file(stats, excluded, file, count)
                   end
                 end
 
@@ -107,6 +123,11 @@ function M.get_stats_async(cb)
                 end
                 table.sort(sorted, function(a, b) return a.lines > b.lines end)
                 stats.lines_by_type = sorted
+
+                table.sort(
+                  stats.top_files,
+                  function(a, b) return a.lines > b.lines end
+                )
 
                 cb(stats)
               end)

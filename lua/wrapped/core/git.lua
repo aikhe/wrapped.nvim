@@ -19,7 +19,7 @@ end
 ---@param list string[]
 ---@param n integer
 ---@return string[]
-local function pick_random(list, n)
+function M._pick_random(list, n)
   if #list <= n then return list end
   local result, indices = {}, {}
   while #indices < n do
@@ -35,7 +35,7 @@ end
 -- seconds to human-readable
 ---@param secs integer
 ---@return string ago
-local function format_ago(secs)
+function M._format_ago(secs)
   local days = math.floor(secs / 86400)
   if days >= 365 then return ("%.1f years ago"):format(days / 365) end
   if days >= 30 then return math.floor(days / 30) .. " months ago" end
@@ -46,24 +46,44 @@ end
 
 -- longest consecutive day streak from sorted date strings
 ---@param sorted string[]
----@return integer streak
-local function parse_streak(sorted)
-  if #sorted == 0 then return 0 end
+---@return integer streak, string|nil start_date, string|nil end_date
+function M._parse_streak(sorted)
+  if #sorted == 0 then return 0, nil, nil end
   local max_streak, cur_streak = 1, 1
+  local cur_start = sorted[1]
+  local max_start, max_end = sorted[1], sorted[1]
+
   for i = 2, #sorted do
     local y, m, d = sorted[i]:match "(%d+)-(%d+)-(%d+)"
     local py, pm, pd = sorted[i - 1]:match "(%d+)-(%d+)-(%d+)"
-    local t1 = os.time { year = y, month = m, day = d }
-    local t0 = os.time { year = py, month = pm, day = pd }
-    cur_streak = math.abs(t1 - t0) <= 86400 and (cur_streak + 1) or 1
-    if cur_streak > max_streak then max_streak = cur_streak end
+    local t1 = os.time {
+      year = tonumber(y, 10),
+      month = tonumber(m, 10),
+      day = tonumber(d, 10),
+    }
+    local t0 = os.time {
+      year = tonumber(py, 10),
+      month = tonumber(pm, 10),
+      day = tonumber(pd, 10),
+    }
+    if math.abs(t1 - t0) <= 86400 then
+      cur_streak = cur_streak + 1
+      if cur_streak > max_streak then
+        max_streak = cur_streak
+        max_start = cur_start
+        max_end = sorted[i]
+      end
+    else
+      cur_streak = 1
+      cur_start = sorted[i]
+    end
   end
-  return max_streak
+  return max_streak, max_start, max_end
 end
 
 ---@param date_str string
 ---@return string lifetime
-local function parse_lifetime(date_str)
+function M._parse_lifetime(date_str)
   local y, m, d = date_str:match "(%d+)-(%d+)-(%d+)"
   if not (y and m and d) then return "Unknown" end
   local age_days = (
@@ -81,10 +101,10 @@ end
 
 ---@param date_str string
 ---@return string last_change
-local function parse_last_change(date_str)
+function M._parse_last_change(date_str)
   local y, m, d = date_str:match "(%d+)-(%d+)-(%d+)"
   if not (y and m and d) then return "Unknown" end
-  return format_ago(os.time() - os.time {
+  return M._format_ago(os.time() - os.time {
     year = tonumber(y, 10),
     month = tonumber(m, 10),
     day = tonumber(d, 10),
@@ -93,7 +113,7 @@ end
 
 ---@param dates string[]
 ---@return string[] sorted
-local function unique_sorted(dates)
+function M._unique_sorted(dates)
   local seen = {} ---@type table<string, boolean>
   for _, d in ipairs(dates) do
     seen[d] = true
@@ -108,7 +128,7 @@ end
 
 ---@param subjects string[]
 ---@return string shortest, string longest
-local function find_extremes(subjects)
+function M._find_extremes(subjects)
   local shortest, longest = subjects[1] or "", subjects[1] or ""
   for _, s in ipairs(subjects) do
     if s:len() < shortest:len() and s:len() > 0 then shortest = s end
@@ -118,9 +138,9 @@ local function find_extremes(subjects)
 end
 
 ---@param year integer
----@param cb fun(data: { commits: string[], total_count: string, first_commit_date: string, config_stats: Wrapped.ConfigStats, commit_activity: table<string, integer>, size_history: Wrapped.SizeHistory })
+---@param cb fun(data: Wrapped.GitStats)
 function M.get_all_data_async(year, cb)
-  local data = {} ---@type { commits: string[], total_count: string, first_commit_date: string, config_stats: Wrapped.ConfigStats, commit_activity: table<string, integer>, size_history: Wrapped.SizeHistory }
+  local data = {} ---@type Wrapped.GitStats
   local total = 6
   local count = 0
 
@@ -131,7 +151,7 @@ function M.get_all_data_async(year, cb)
 
   -- random commits
   exec_git({ "log", "--format=%s" }, function(out)
-    data.commits = pick_random(vim.split(out, "\n", { trimempty = true }), 5)
+    data.commits = M._pick_random(vim.split(out, "\n", { trimempty = true }), 5)
     check()
   end)
 
@@ -152,21 +172,54 @@ function M.get_all_data_async(year, cb)
   exec_git({ "log", "--format=%ad|%s", "--date=short" }, function(out)
     local lines = vim.split(out, "\n", { trimempty = true })
     local dates, subjects = {}, {}
+    local date_counts = {}
+    local monthly_counts = {}
     for _, l in ipairs(lines) do
       local d, s = l:match "([^|]+)|(.*)"
       if d and s then
         table.insert(dates, d)
         table.insert(subjects, s)
+        date_counts[d] = (date_counts[d] or 0) + 1
+        local ym = d:sub(1, 7)
+        monthly_counts[ym] = (monthly_counts[ym] or 0) + 1
       end
     end
 
-    local sorted = unique_sorted(dates)
-    local shortest, longest = find_extremes(subjects)
+    local sorted_months = {}
+    for ym in pairs(monthly_counts) do
+      table.insert(sorted_months, ym)
+    end
+    table.sort(sorted_months)
+
+    local commit_history = {}
+    for _, ym in ipairs(sorted_months) do
+      table.insert(commit_history, monthly_counts[ym])
+    end
+
+    local sorted = M._unique_sorted(dates)
+    local shortest, longest = M._find_extremes(subjects)
+    local streak, streak_start, streak_end = M._parse_streak(sorted)
+
+    local highest_day = { count = 0, date = "None" }
+    local lowest_day = { count = math.huge, date = "None" }
+
+    for d, c in pairs(date_counts) do
+      if c > highest_day.count then highest_day = { count = c, date = d } end
+      if c < lowest_day.count then lowest_day = { count = c, date = d } end
+    end
+    if lowest_day.count == math.huge then
+      lowest_day = { count = 0, date = "None" }
+    end
 
     data.config_stats = {
-      longest_streak = parse_streak(sorted),
-      last_change = dates[1] and parse_last_change(dates[1]) or "Unknown",
-      lifetime = sorted[1] and parse_lifetime(sorted[1]) or "Unknown",
+      longest_streak = streak,
+      longest_streak_start = streak_start,
+      longest_streak_end = streak_end,
+      highest_day = highest_day,
+      lowest_day = lowest_day,
+      commit_history = commit_history,
+      last_change = dates[1] and M._parse_last_change(dates[1]) or "Unknown",
+      lifetime = sorted[1] and M._parse_lifetime(sorted[1]) or "Unknown",
       shortest_msg = shortest,
       longest_msg = longest,
     }

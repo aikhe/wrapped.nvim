@@ -28,6 +28,7 @@ function M.get_history_async(cb)
 
     local lines = vim.split(result.stdout or "", "\n", { trimempty = true })
     local seen, cur_date, total_ever = {}, nil, 0
+    local growth = {}
 
     for _, line in ipairs(lines) do
       if line:match "^COMMIT_DATE:" then
@@ -37,6 +38,7 @@ function M.get_history_async(cb)
           if not seen[plugin] then
             seen[plugin] = cur_date
             total_ever = total_ever + 1
+            table.insert(growth, { date = cur_date, count = total_ever })
           end
         end
       end
@@ -44,7 +46,9 @@ function M.get_history_async(cb)
 
     local ok, lazy = pcall(require, "lazy")
     if not (ok and lazy and lazy.plugins) then
-      vim.schedule(function() cb { total_ever_installed = total_ever } end)
+      vim.schedule(
+        function() cb { total_ever_installed = total_ever, growth = growth } end
+      )
       return
     end
 
@@ -80,6 +84,7 @@ function M.get_history_async(cb)
           end
           cb {
             total_ever_installed = total_ever,
+            growth = growth,
             oldest_plugin = oldest and { name = oldest, date = old_date }
               or nil,
             newest_plugin = newest and { name = newest, date = new_date }

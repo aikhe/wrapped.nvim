@@ -35,23 +35,6 @@ local function truncate(str, max)
   return str
 end
 
--- wraps text into multiple lines of max width
----@param str string
----@param max integer
----@param hl? string
----@return string[][][] lines
-local function wrap_lines(str, max, hl)
-  local result = {} ---@type string[][][]
-  while str:len() > max do
-    local cut = str:sub(1, max)
-    local space = cut:match ".*()%s" or max
-    table.insert(result, { { str:sub(1, space), hl or "Normal" } })
-    str = str:sub(space + 1):gsub("^%s+", "")
-  end
-  if str:len() > 0 then table.insert(result, { { str, hl or "Normal" } }) end
-  return result
-end
-
 -- returns intensity index 0 (brightest) to 3 (dimmest)
 ---@param n integer
 ---@return "0"|"1"|"2"|"3" intensity
@@ -208,14 +191,17 @@ local function build_size_chart(size_history, target_width)
   local chart_data = {
     val = display_vals,
     footer_label = { "󰔵  Config Size Over Time", "WrappedTitle" },
+
     format_labels = function(x)
       local val = math.floor(baseline + (x / 100) * range)
       if val >= 1000 then return string.format("%.1fk", val / 1000) end
       return tostring(val)
     end,
+
     baropts = {
       w = bar_w,
       gap = bar_gap,
+      -- dual_hl = { "WrappedGreen0", "WrappedGreen3" },
       format_hl = function(x) ---@param x integer
         if x > 85 then return "WrappedGreen0" end
         if x > 60 then return "WrappedGreen1" end
@@ -226,6 +212,140 @@ local function build_size_chart(size_history, target_width)
   }
 
   local chart = voltui.graphs.bar(chart_data) ---@type string[][][]
+
+  return chart
+end
+
+---@param plugin_history Wrapped.PluginHistory
+---@param target_width integer
+---@return string[][][] growth_chart
+local function build_plugin_growth_chart(plugin_history, target_width)
+  if not plugin_history then return {} end
+
+  local growth = plugin_history.growth
+  if not growth or #growth == 0 then return {} end
+
+  local vals = {}
+  for _, entry in ipairs(growth) do
+    table.insert(vals, (entry.count or 0))
+  end
+
+  local min_val = math.min(unpack(vals))
+  local max_val = math.max(unpack(vals))
+  local diff = max_val - min_val
+
+  local baseline = 0
+  if diff > 5 then baseline = math.max(0, math.floor(min_val - diff * 0.3)) end
+
+  if max_val == baseline then max_val = baseline + 1 end
+  local range = max_val - baseline
+
+  local scaled = {}
+  for _, v in ipairs(vals) do
+    table.insert(
+      scaled,
+      math.min(100, math.max(0, math.floor(((v - baseline) / range) * 100)))
+    )
+  end
+
+  local bar_w, bar_gap = 2, 1
+  local label_area = 10
+  local max_bars = math.floor((target_width - label_area) / (bar_w + bar_gap))
+  if max_bars < 1 then max_bars = 1 end
+
+  local display_vals = scaled
+  if #scaled ~= max_bars and #scaled > 0 then
+    display_vals = {}
+    if #scaled == 1 then
+      for i = 1, max_bars do
+        table.insert(display_vals, scaled[1])
+      end
+    else
+      local step = (#scaled - 1) / (max_bars - 1)
+      for i = 0, max_bars - 1 do
+        local idx = math.floor(1 + i * step + 0.5)
+        table.insert(display_vals, scaled[idx])
+      end
+    end
+  end
+
+  local chart_data = {
+    val = display_vals,
+    footer_label = { "󰔵  Plugin growth overtime", "WrappedTitle" },
+    format_labels = function(x)
+      local val = math.floor(baseline + (x / 100) * range)
+      return tostring(val)
+    end,
+    baropts = {
+      w = bar_w,
+      gap = bar_gap,
+      dual_hl = { "WrappedBlue0", "WrappedBlue2" },
+    },
+  }
+
+  return voltui.graphs.bar(chart_data)
+end
+
+---@param commit_history integer[]
+---@param target_width integer
+---@return string[][][] freq_chart
+local function build_commit_freq_chart(commit_history, target_width)
+  if not commit_history or #commit_history == 0 then return {} end
+
+  local vals = commit_history
+
+  local max_val = math.max(unpack(vals))
+  if max_val == 0 then max_val = 1 end
+
+  local scaled = {}
+  for _, v in ipairs(vals) do
+    if v <= 0 then
+      table.insert(scaled, 0)
+    else
+      local pct = 20 + math.floor(((v - 1) / math.max(1, max_val - 1)) * 80)
+      table.insert(scaled, math.min(100, pct))
+    end
+  end
+
+  local max_bars = math.floor((target_width - 10) / 3)
+  if max_bars < 1 then max_bars = 1 end
+
+  local display_vals = scaled
+  if #scaled ~= max_bars and #scaled > 0 then
+    display_vals = {}
+    if #scaled == 1 then
+      for i = 1, max_bars do
+        table.insert(display_vals, scaled[1])
+      end
+    else
+      local step = (#scaled - 1) / (max_bars - 1)
+      for i = 0, max_bars - 1 do
+        local idx = math.floor(1 + i * step + 0.5)
+        table.insert(display_vals, scaled[idx])
+      end
+    end
+  end
+
+  local chart_data = {
+    val = display_vals,
+    width = target_width,
+    footer_label = { "󰔵  Config Changes Frequency", "WrappedTitle" },
+    format_labels = function(x)
+      if x == 10 then return "0" end
+      local val = 1 + math.floor(((x - 20) / 80) * (max_val - 1))
+      return tostring(val)
+    end,
+    baropts = {
+      sidelabels = true,
+      icons = { on = " 󰄰", off = " ·" },
+      hl = { on = "WrappedBlue0", off = "Comment" },
+    },
+  }
+
+  local chart = voltui.graphs.dot(chart_data)
+
+  -- push chart down to align
+  table.insert(chart, 1, { { " ", "" } })
 
   return chart
 end
@@ -367,17 +487,33 @@ end
 ---@param width integer
 ---@return string[][][] top_files
 local function build_top_files_table(file_stats, width)
-  local data = { { "  File Extension", "󰅪  Total Lines" } } ---@type string[][]
+  local inner_gap = 2
+  local col_w = math.floor((width - inner_gap) / 2)
+
+  -- top 5 file types by total lines
+  local type_data = { { "  Extension", "󰅪  Lines" } } ---@type string[][]
   for i, stat in ipairs(file_stats.lines_by_type) do
     if i > 5 then break end
-    table.insert(data, { stat.name, tostring(stat.lines) })
+    table.insert(type_data, { stat.name, tostring(stat.lines) })
   end
-  return voltui.table(
-    data,
-    width,
-    "Special",
-    { "󱔘  Top 5 Largest File Types", "WrappedYellow0" }
-  )
+  local type_tbl = voltui.table(type_data, col_w, "Special")
+
+  -- top 5 individual files by lines
+  local file_data = { { "  File", "󰅪  Lines" } } ---@type string[][]
+  for i, stat in ipairs(file_stats.top_files or {}) do
+    if i > 5 then break end
+    local name = vim.fn.fnamemodify(stat.name, ":t")
+    table.insert(
+      file_data,
+      { truncate(name, col_w - 14), tostring(stat.lines) }
+    )
+  end
+  local file_tbl = voltui.table(file_data, col_w, "Special")
+
+  return voltui.grid_col {
+    { lines = type_tbl, w = col_w, pad = inner_gap },
+    { lines = file_tbl, w = col_w },
+  }
 end
 
 ---@param lines string[][][]
@@ -454,58 +590,94 @@ local function build_content(
       lines,
       build_heatmap(ui_state.commit_activity, get_config().size.width)
     )
-  end
-  lines = add(lines, " ", "")
+    lines = add(lines, " ", "")
 
-  -- commit messages
-  local inner_w = get_config().size.width - (state.xpad or 0) * 2
-  lines = add(lines, "  Commit Messages", "WrappedRed0")
-  lines = add(lines, " ", "")
-  table.insert(lines, {
-    { "Shortest: ", "WrappedRed0" },
-    { config_stats.shortest_msg, "WrappedLabel" },
-  })
+    if
+      config_stats
+      and config_stats.highest_day
+      and config_stats.lowest_day
+    then
+      local table_w = get_config().size.width - (state.xpad or 0) * 2
 
-  local long_prefix = "Longest: "
-  local wrap_w = inner_w - long_prefix:len() + 1
+      local hi_day = config_stats.highest_day
+      local lo_day = config_stats.lowest_day
+      local streak_start = config_stats.longest_streak_start or "None"
+      local streak_end = config_stats.longest_streak_end or "None"
 
-  local long_lines =
-    wrap_lines(config_stats.longest_msg, wrap_w, "WrappedLabel")
-  table.insert(long_lines[1], 1, { long_prefix, "WrappedRed0" })
-  vim.list_extend(lines, long_lines)
-  lines = add(lines, " ", "")
+      local h_header = "  Highest"
+      local l_header = "  Lowest"
+      local s_header = "󰔵  Streak"
+      local h_data = tostring(hi_day.count) .. " (" .. hi_day.date .. ")"
+      local l_data = tostring(lo_day.count) .. " (" .. lo_day.date .. ")"
+      local s_data = streak_start .. " to " .. streak_end
 
-  -- random commits
-  lines = add(lines, " Random Commits", "WrappedBlue0")
-  lines = add(lines, " ", "")
-  for _, commit in ipairs(commits) do
-    vim.list_extend(lines, wrap_lines(commit, inner_w))
-  end
-  table.insert(lines, { { " ", "" } })
-  table.insert(lines, voltui.separator("─", inner_w, "WrappedSeparator"))
-  table.insert(lines, { { " ", "" } })
+      -- ensure equal width by padding to max length
+      local function get_w(s) return api.nvim_strwidth(s) end
+      local max_w = math.max(
+        get_w(h_header),
+        get_w(l_header),
+        get_w(s_header),
+        get_w(h_data),
+        get_w(l_data),
+        get_w(s_data)
+      )
 
-  -- size chart & top files
-  local width = get_config().size.width - (state.xpad or 0) * 2
-  local left_w = math.floor((width - 2) / 2)
-  local right_w = width - left_w - 2
+      local function p(s)
+        local diff = max_w - get_w(s)
+        local left = math.floor(diff / 2)
+        local right = diff - left
+        return string.rep(" ", left) .. s .. string.rep(" ", right)
+      end
 
-  local left_col = {} ---@type string[][][]
-  if size_history and #size_history.values > 0 then
-    left_col = build_size_chart(size_history, left_w)
-    -- size chart top padding
-    for _ = 1, 2 do
-      table.insert(left_col, 1, { { " ", "" } })
+      local extrema_tbl = {
+        { p(h_header), p(l_header), p(s_header) },
+        { p(h_data), p(l_data), p(s_data) },
+      }
+
+      local extrema_table = voltui.table(extrema_tbl, table_w, "Special")
+      vim.list_extend(lines, extrema_table)
     end
   end
+  lines = add(lines, " ", "")
 
-  local right_col = build_top_files_table(file_stats, right_w)
+  -- charts & top files
+  local width = get_config().size.width - (state.xpad or 0) * 2
+  table.insert(lines, { { " ", "" } })
 
-  local grid = voltui.grid_col {
-    { lines = left_col, w = left_w, pad = 2 },
-    { lines = right_col, w = right_w },
-  }
-  vim.list_extend(lines, grid)
+  -- charts row
+  local charts_row = {}
+  local freq_chart = nil
+  local gap = 2
+  local left_w = math.floor((width - gap) / 2)
+  local right_w = width - left_w - gap
+
+  if size_history and #size_history.values > 0 then
+    local size_chart = build_size_chart(size_history, left_w)
+    local growth_chart = build_plugin_growth_chart(plugin_history, right_w + 4)
+    freq_chart = build_commit_freq_chart(
+      config_stats and config_stats.commit_history or {},
+      right_w + 4
+    )
+
+    charts_row = voltui.grid_col {
+      { lines = size_chart, w = left_w, pad = gap },
+      { lines = growth_chart, w = right_w },
+    }
+    vim.list_extend(lines, charts_row)
+    lines = add(lines, " ", "")
+  end
+
+  -- top 5 largest file types (and freq chart)
+  local top_files = build_top_files_table(file_stats, left_w)
+  if freq_chart then
+    local bottom_row = voltui.grid_col {
+      { lines = freq_chart, w = right_w, pad = gap },
+      { lines = top_files, w = left_w },
+    }
+    vim.list_extend(lines, bottom_row)
+  else
+    vim.list_extend(lines, top_files)
+  end
 
   -- vertical pad
   local ypad = state.ypad or 0
