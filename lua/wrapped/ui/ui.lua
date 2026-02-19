@@ -80,10 +80,10 @@ local function build_heatmap(activity, width)
 
   -- month header row with per-month color
   ---@type string[][]
-  local header = { { "   ", "Comment" }, { "  " } }
+  local header = { { " »", "Comment" }, { "  " } }
   for i = 1, 12 do
     table.insert(header, { "  " .. months[i] .. "  ", "Ex" .. color_cycle[i] })
-    if i < 12 then table.insert(header, { " " }) end
+    if i < 12 then table.insert(header, { "  " }) end
   end
 
   ---@type string[][]
@@ -131,7 +131,7 @@ local function build_heatmap(activity, width)
     { tostring(year), "Special" },
     { " »", "Comment" },
     { "_pad_" },
-    { "  Less " },
+    { "Less " },
   }
   for i = 3, 0, -1 do
     table.insert(legend, { "󱓻 ", "WrappedGreen" .. i })
@@ -421,7 +421,7 @@ end
 ---@return string[][][] plugins_files
 local function build_plugins_files_table(plugin_history, file_stats)
   local width = get_config().size.width - (state.xpad or 0) * 2
-  local barlen = math.floor((width - 2) / 2)
+  local barlen = math.floor((width - 2) / 2) + 2
   local table_w = math.floor((barlen - 2) / 2)
 
   local function build_plugin_table(title, name, date)
@@ -456,8 +456,8 @@ local function build_plugins_files_table(plugin_history, file_stats)
   newest_tbl[1][1][2] = "WrappedGreen0" -- override title HL
 
   local left_inner = voltui.grid_col {
-    { lines = oldest_tbl, w = table_w + 1, pad = 2 },
-    { lines = newest_tbl, w = barlen - table_w - 1 },
+    { lines = oldest_tbl, w = table_w + 1, pad = 0 },
+    { lines = newest_tbl, w = barlen - table_w - 2 },
   }
 
   local b_name = truncate(file_stats.biggest.name or "None", barlen - 20)
@@ -472,13 +472,13 @@ local function build_plugins_files_table(plugin_history, file_stats)
 
   local file_tbl = voltui.table(
     file_tbl_data,
-    barlen,
+    barlen - 2,
     "normal",
     { "  Biggest & smallest file", "WrappedYellow0" }
   )
 
   return voltui.grid_col {
-    { lines = left_inner, w = barlen, pad = 2 },
+    { lines = left_inner, w = barlen, pad = 0 },
     { lines = file_tbl, w = barlen },
   }
 end
@@ -487,7 +487,7 @@ end
 ---@param width integer
 ---@return string[][][] top_files
 local function build_top_files_table(file_stats, width)
-  local inner_gap = 2
+  local inner_gap = 1
   local col_w = math.floor((width - inner_gap) / 2)
 
   -- top 5 file types by total lines
@@ -592,15 +592,12 @@ local function build_content(
     )
     lines = add(lines, " ", "")
 
-    if
-      config_stats
-      and config_stats.highest_day
-      and config_stats.lowest_day
-    then
+    local hi_day = config_stats and config_stats.highest_day
+    local lo_day = config_stats and config_stats.lowest_day
+
+    if hi_day and lo_day then
       local table_w = get_config().size.width - (state.xpad or 0) * 2
 
-      local hi_day = config_stats.highest_day
-      local lo_day = config_stats.lowest_day
       local streak_start = config_stats.longest_streak_start or "None"
       local streak_end = config_stats.longest_streak_end or "None"
 

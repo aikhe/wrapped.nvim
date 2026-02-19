@@ -14,7 +14,7 @@ Visualize and review your Neovim configuration activity with stats, insights, hi
 - **Visual Dashboard**: A beautiful, component-based UI powered by [`nvzone/volt`](https://github.com/nvzone/volt).
 
 > [!IMPORTANT]
-> This plugin is currently a **prototype** and is **very unstable**, it might not work to some.
+> This plugin is currently a **prototype** and is **very unstable**.
 > I made this version to have a quick iteration and see what I can do. But ofcourse future updates will aim to be stable, optimized, bug-free, compatible, and fast.
 > I’d love to hear any feedbacks, issues, and contributions if you have any.
 
