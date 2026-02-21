@@ -54,12 +54,12 @@ local function build_content(results)
   if config_stats then
     local barlen = math.floor((width - 2) / 2)
     local left_tbl = {
-      { "  Sessions", "  Time" },
+      { "  Sessions", "  Time" },
       { "Streak", (config_stats.longest_streak or 0) .. " days" },
       { "Last Change", config_stats.last_change or "Unknown" },
     }
     local right_tbl = {
-      { "  History", "󰌵 Info" },
+      { "  History", "󰌵 Info" },
       { "Started in", git.first_commit_date or "Unknown" },
       { "Lifetime", config_stats.lifetime or "Unknown" },
     }
