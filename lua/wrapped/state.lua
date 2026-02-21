@@ -1,6 +1,6 @@
 local api = vim.api
 
----@class Wrapped.State
+---@type Wrapped.State
 local M = {
   -- user config
   config = {
@@ -25,7 +25,7 @@ local M = {
   buf = nil,
   win = nil,
   commit_activity = nil,
-  heatmap_year = tonumber(os.date "%Y", 10),
+  heatmap_year = tonumber(os.date "%Y") or 2024,
   first_commit_year = nil,
 }
 

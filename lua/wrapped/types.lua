@@ -1,11 +1,28 @@
 ---@meta
 
+-- config
+
 ---@class WrappedConfig
 ---@field path string|nil
 ---@field border boolean|string|string[]
 ---@field size { width: integer, height: integer }
 ---@field exclude_filetype string[]
 ---@field cap { commits: integer, plugins: integer, plugins_ever: integer, lines: integer }
+
+-- state
+
+---@class Wrapped.State
+---@field config WrappedConfig
+---@field xpad integer
+---@field ypad integer
+---@field ns integer
+---@field buf integer|nil
+---@field win integer|nil
+---@field commit_activity table<string, integer>|nil
+---@field heatmap_year integer
+---@field first_commit_year integer|nil
+
+-- core data
 
 ---@class Wrapped.FileStat
 ---@field name string
@@ -42,20 +59,19 @@
 ---@field commit_history integer[]
 ---@field last_change string
 ---@field lifetime string
----@field shortest_msg string
----@field longest_msg string
-
----@class Wrapped.GitStats
----@field commits? string[]
----@field total_count? string
----@field first_commit_date? string
----@field config_stats? Wrapped.ConfigStats
----@field commit_activity? table<string, integer>
----@field size_history? Wrapped.SizeHistory
 
 ---@class Wrapped.SizeHistory
 ---@field values integer[]
 ---@field labels string[]
+
+-- results
+
+---@class Wrapped.GitStats
+---@field total_count? integer|string
+---@field first_commit_date? string
+---@field config_stats? Wrapped.ConfigStats
+---@field commit_activity? table<string, integer>
+---@field size_history? Wrapped.SizeHistory
 
 ---@class Wrapped.Results
 ---@field git? Wrapped.GitStats

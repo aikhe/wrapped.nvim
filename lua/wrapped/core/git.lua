@@ -16,22 +16,6 @@ local function exec_git(args, cb)
   )
 end
 
----@param list string[]
----@param n integer
----@return string[]
-function M._pick_random(list, n)
-  if #list <= n then return list end
-  local result, indices = {}, {}
-  while #indices < n do
-    local idx = math.random(1, #list)
-    if not vim.list_contains(indices, idx) then
-      table.insert(indices, idx)
-      table.insert(result, list[idx])
-    end
-  end
-  return result
-end
-
 -- seconds to human-readable
 ---@param secs integer
 ---@return string ago
@@ -126,34 +110,17 @@ function M._unique_sorted(dates)
   return sorted
 end
 
----@param subjects string[]
----@return string shortest, string longest
-function M._find_extremes(subjects)
-  local shortest, longest = subjects[1] or "", subjects[1] or ""
-  for _, s in ipairs(subjects) do
-    if s:len() < shortest:len() and s:len() > 0 then shortest = s end
-    if s:len() > longest:len() then longest = s end
-  end
-  return shortest, longest
-end
-
 ---@param year integer
 ---@param cb fun(data: Wrapped.GitStats)
 function M.get_all_data_async(year, cb)
   local data = {} ---@type Wrapped.GitStats
-  local total = 6
+  local total = 4
   local count = 0
 
   local function check()
     count = count + 1
     if count == total then cb(data) end
   end
-
-  -- random commits
-  exec_git({ "log", "--format=%s" }, function(out)
-    data.commits = M._pick_random(vim.split(out, "\n", { trimempty = true }), 5)
-    check()
-  end)
 
   -- total commit count
   exec_git({ "rev-list", "--count", "HEAD" }, function(out)
@@ -168,21 +135,17 @@ function M.get_all_data_async(year, cb)
     check()
   end)
 
-  -- config stats (streak, lifetime, commit messages)
-  exec_git({ "log", "--format=%ad|%s", "--date=short" }, function(out)
+  -- config stats (streak, lifetime)
+  exec_git({ "log", "--format=%ad", "--date=short" }, function(out)
     local lines = vim.split(out, "\n", { trimempty = true })
-    local dates, subjects = {}, {}
+    local dates = {}
     local date_counts = {}
     local monthly_counts = {}
-    for _, l in ipairs(lines) do
-      local d, s = l:match "([^|]+)|(.*)"
-      if d and s then
-        table.insert(dates, d)
-        table.insert(subjects, s)
-        date_counts[d] = (date_counts[d] or 0) + 1
-        local ym = d:sub(1, 7)
-        monthly_counts[ym] = (monthly_counts[ym] or 0) + 1
-      end
+    for _, d in ipairs(lines) do
+      table.insert(dates, d)
+      date_counts[d] = (date_counts[d] or 0) + 1
+      local ym = d:sub(1, 7)
+      monthly_counts[ym] = (monthly_counts[ym] or 0) + 1
     end
 
     local sorted_months = {}
@@ -197,7 +160,6 @@ function M.get_all_data_async(year, cb)
     end
 
     local sorted = M._unique_sorted(dates)
-    local shortest, longest = M._find_extremes(subjects)
     local streak, streak_start, streak_end = M._parse_streak(sorted)
 
     local highest_day = { count = 0, date = "None" }
@@ -220,8 +182,6 @@ function M.get_all_data_async(year, cb)
       commit_history = commit_history,
       last_change = dates[1] and M._parse_last_change(dates[1]) or "Unknown",
       lifetime = sorted[1] and M._parse_lifetime(sorted[1]) or "Unknown",
-      shortest_msg = shortest,
-      longest_msg = longest,
     }
     check()
   end)

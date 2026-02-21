@@ -139,7 +139,7 @@ function M.commit_freq(commit_history, width)
   if #scaled ~= max_bars and #scaled > 0 then
     display_vals = {}
     if #scaled == 1 then
-      for _ in max_bars do
+      for _ = 1, max_bars do
         table.insert(display_vals, scaled[1])
       end
     else
