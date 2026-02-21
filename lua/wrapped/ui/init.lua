@@ -42,7 +42,7 @@ local function build_content(results)
       git.total_count,
       plugins_mod.get_count(),
       plugin_history and plugin_history.total_ever_installed or 0,
-      files.total_lines
+      files and files.total_lines or 0
     )
   )
   table.insert(lines, { { " ", "" } })
@@ -53,10 +53,7 @@ local function build_content(results)
 
   -- sessions & history tables
   if config_stats then
-    vim.list_extend(
-      lines,
-      tables.sessions_history(config_stats, git, width)
-    )
+    vim.list_extend(lines, tables.sessions_history(config_stats, git, width))
   end
 
   -- heatmap
