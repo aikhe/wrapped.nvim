@@ -57,19 +57,6 @@
 ---@field values integer[]
 ---@field labels string[]
 
----@class Wrapped.UiState
----@field buf integer|nil
----@field win integer|nil
----@field ns integer
----@field commit_activity? table<string, integer>
-
----@class Wrapped.LoadingState
----@field buf integer|nil
----@field win integer|nil
----@field timer userdata|nil
----@field index integer
----@field ns integer
-
 ---@class Wrapped.Results
 ---@field git? Wrapped.GitStats
 ---@field files? Wrapped.FileStats

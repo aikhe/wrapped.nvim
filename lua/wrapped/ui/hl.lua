@@ -21,7 +21,7 @@ M.month_colors = { "Red", "Green", "Blue", "Yellow" }
 
 ---@param ns integer
 function M.apply_float(ns)
-  local config = require("wrapped").config
+  local config = require("wrapped.state").config
 
   local bg = get_bg()
   local is_transparent = not bg

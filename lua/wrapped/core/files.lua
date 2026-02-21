@@ -2,7 +2,7 @@
 local M = {}
 
 ---@return string path
-local function get_path() return require("wrapped").config.path end
+local function get_path() return require("wrapped.state").config.path end
 
 ---@param file string
 ---@return string ext
@@ -73,7 +73,7 @@ function M.get_stats_async(cb)
                   top_files = {},
                 }
 
-                local excluded_config = require("wrapped").config.exclude_filetype
+                local excluded_config = require("wrapped.state").config.exclude_filetype
                   or {}
                 local excluded = {}
                 for _, ext in ipairs(excluded_config) do

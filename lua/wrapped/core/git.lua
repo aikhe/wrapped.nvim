@@ -2,7 +2,7 @@
 local M = {}
 
 ---@return string path
-local function get_path() return require("wrapped").config.path end
+local function get_path() return require("wrapped.state").config.path end
 
 ---@param args string[]
 ---@param cb fun(stdout: string)
