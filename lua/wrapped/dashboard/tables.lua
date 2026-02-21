@@ -1,8 +1,7 @@
 local api = vim.api
 local voltui = require "volt.ui"
-local state = require "wrapped.state"
 
----@class Wrapped.UI.Sections
+---@class Wrapped.UI.Tables
 local M = {}
 
 ---@param str string
@@ -13,89 +12,42 @@ local function truncate(str, max)
   return str
 end
 
--- 4 progress bars: commits, plugins, ever installed, total lines
----@param total_commits integer|string
----@param plugin_count integer
----@param total_ever integer
----@param total_lines integer
----@return string[][][] bars
-function M.stats_bars(total_commits, plugin_count, total_ever, total_lines)
-  local cap = state.config.cap
-  local width = state.config.size.width - state.xpad * 2
+-- sessions & history combined table
+---@param config_stats Wrapped.ConfigStats
+---@param git table
+---@param width integer
+---@return string[][][] section
+function M.sessions_history(config_stats, git, width)
+  if not config_stats then return {} end
+
   local barlen = math.floor((width - 2) / 2)
-  local table_w = math.floor((barlen - 2) / 2)
-
-  ---@param label string
-  ---@param val integer|string
-  ---@param goal integer
-  ---@param icon string
-  ---@param hl string
-  local function bar(label, val, goal, icon, hl)
-    val = tonumber(val) or 0
-    local perc = math.min(math.floor((val / goal) * 100), 100)
-    return {
-      {
-        { icon .. " ", hl },
-        { label .. " ~ ", hl },
-        { val .. " / " .. goal, hl },
-      },
-      {},
-      voltui.progressbar {
-        w = table_w,
-        val = perc,
-        icon = { on = "┃", off = "┃" },
-        hl = { on = hl, off = "Linenr" },
-      },
-    }
-  end
-
-  local left = voltui.grid_col {
-    {
-      lines = bar(
-        "  Commits",
-        total_commits,
-        cap.commits,
-        "",
-        "WrappedGreen0"
-      ),
-      w = table_w + 1,
-      pad = 2,
-    },
-    {
-      lines = bar("  Plugins", plugin_count, cap.plugins, "", "Special"),
-      w = barlen - table_w - 1,
-    },
+  local left_tbl = {
+    { "  Sessions", "  Time" },
+    { "Streak", (config_stats.longest_streak or 0) .. " days" },
+    { "Last Change", config_stats.last_change or "Unknown" },
   }
-  local right = voltui.grid_col {
-    {
-      lines = bar(
-        "  Total Ever",
-        total_ever,
-        cap.plugins_ever,
-        "",
-        "WrappedBlue0"
-      ),
-      w = table_w + 1,
-      pad = 2,
-    },
-    {
-      lines = bar("  Lines", total_lines, cap.lines, "", "WrappedRed0"),
-      w = barlen - table_w - 1,
-    },
+  local right_tbl = {
+    { "  History", "󰌵 Info" },
+    { "Started in", ((git and git.first_commit_date) or "Unknown") },
+    { "Lifetime", config_stats.lifetime or "Unknown" },
   }
 
   return voltui.grid_col {
-    { lines = left, w = barlen, pad = 2 },
-    { lines = right, w = barlen },
+    {
+      lines = voltui.table(left_tbl, barlen, "Special"),
+      w = barlen,
+      pad = 2,
+    },
+    { lines = voltui.table(right_tbl, barlen, "Special"), w = barlen },
   }
 end
 
 -- oldest/newest plugin + biggest/smallest file tables
 ---@param plugin_history Wrapped.PluginHistory
 ---@param file_stats Wrapped.FileStats
+---@param width integer
 ---@return string[][][] section
-function M.plugins_files(plugin_history, file_stats)
-  local width = state.config.size.width - state.xpad * 2
+function M.plugins_files(plugin_history, file_stats, width)
   local barlen = math.floor((width - 2) / 2) + 2
   local table_w = math.floor((barlen - 2) / 2)
 

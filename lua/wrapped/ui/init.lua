@@ -5,7 +5,8 @@ local hl = require "wrapped.ui.hl"
 local state = require "wrapped.state"
 local charts = require "wrapped.dashboard.charts"
 local heatmap = require "wrapped.dashboard.heatmap"
-local sections = require "wrapped.dashboard.sections"
+local bars = require "wrapped.dashboard.bars"
+local tables = require "wrapped.dashboard.tables"
 local plugins_mod = require "wrapped.core.plugins"
 
 ---@class Wrapped.Ui
@@ -37,7 +38,7 @@ local function build_content(results)
   -- progress bars
   vim.list_extend(
     lines,
-    sections.stats_bars(
+    bars.stats_bars(
       git.total_count,
       plugins_mod.get_count(),
       plugin_history and plugin_history.total_ever_installed or 0,
@@ -48,31 +49,13 @@ local function build_content(results)
   table.insert(lines, { { " ", "" } })
 
   -- plugin & file info tables
-  vim.list_extend(lines, sections.plugins_files(plugin_history, files))
+  vim.list_extend(lines, tables.plugins_files(plugin_history, files, width))
 
   -- sessions & history tables
   if config_stats then
-    local barlen = math.floor((width - 2) / 2)
-    local left_tbl = {
-      { "  Sessions", "  Time" },
-      { "Streak", (config_stats.longest_streak or 0) .. " days" },
-      { "Last Change", config_stats.last_change or "Unknown" },
-    }
-    local right_tbl = {
-      { "  History", "󰌵 Info" },
-      { "Started in", git.first_commit_date or "Unknown" },
-      { "Lifetime", config_stats.lifetime or "Unknown" },
-    }
     vim.list_extend(
       lines,
-      voltui.grid_col {
-        {
-          lines = voltui.table(left_tbl, barlen, "Special"),
-          w = barlen,
-          pad = 2,
-        },
-        { lines = voltui.table(right_tbl, barlen, "Special"), w = barlen },
-      }
+      tables.sessions_history(config_stats, git, width)
     )
   end
 
@@ -84,7 +67,7 @@ local function build_content(results)
 
     if config_stats then
       local table_w = cfg.size.width - state.xpad * 2
-      local streak = sections.streak_table(config_stats, table_w)
+      local streak = tables.streak_table(config_stats, table_w)
       if #streak > 0 then vim.list_extend(lines, streak) end
     end
   end
@@ -111,7 +94,7 @@ local function build_content(results)
     config_stats and config_stats.commit_history or {},
     right_w + 4
   )
-  local top_files = sections.top_files(files, left_w)
+  local top_files = tables.top_files(files, left_w)
 
   if #freq_chart > 0 then
     vim.list_extend(
