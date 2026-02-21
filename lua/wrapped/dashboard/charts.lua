@@ -134,10 +134,25 @@ function M.commit_freq(commit_history, width)
 
   local max_bars = math.floor((width - 10) / 3)
   if max_bars < 1 then max_bars = 1 end
-  scaled = downsample(scaled, max_bars)
+
+  local display_vals = scaled
+  if #scaled ~= max_bars and #scaled > 0 then
+    display_vals = {}
+    if #scaled == 1 then
+      for _ in max_bars do
+        table.insert(display_vals, scaled[1])
+      end
+    else
+      local step = (#scaled - 1) / (max_bars - 1)
+      for i = 0, max_bars - 1 do
+        local idx = math.floor(1 + i * step + 0.5)
+        table.insert(display_vals, scaled[idx])
+      end
+    end
+  end
 
   local chart = voltui.graphs.dot {
-    val = scaled,
+    val = display_vals,
     width = width,
     footer_label = { "󰔵  Config Changes Frequency", "WrappedYellow0" },
     format_labels = function(x)
@@ -151,7 +166,7 @@ function M.commit_freq(commit_history, width)
     },
   }
 
-  -- push chart down to align
+  -- push down to align
   table.insert(chart, 1, { { " ", "" } })
   return chart
 end

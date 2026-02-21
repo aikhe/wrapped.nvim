@@ -34,7 +34,11 @@ function M.stats_bars(total_commits, plugin_count, total_ever, total_lines)
     val = tonumber(val) or 0
     local perc = math.min(math.floor((val / goal) * 100), 100)
     return {
-      { { icon .. " ", hl }, { label .. " ~ ", hl }, { val .. " / " .. goal, hl } },
+      {
+        { icon .. " ", hl },
+        { label .. " ~ ", hl },
+        { val .. " / " .. goal, hl },
+      },
       {},
       voltui.progressbar {
         w = table_w,
@@ -46,12 +50,38 @@ function M.stats_bars(total_commits, plugin_count, total_ever, total_lines)
   end
 
   local left = voltui.grid_col {
-    { lines = bar("  Commits", total_commits, cap.commits, "", "WrappedGreen0"), w = table_w + 1, pad = 2 },
-    { lines = bar("  Plugins", plugin_count, cap.plugins, "", "Special"), w = barlen - table_w - 1 },
+    {
+      lines = bar(
+        "  Commits",
+        total_commits,
+        cap.commits,
+        "",
+        "WrappedGreen0"
+      ),
+      w = table_w + 1,
+      pad = 2,
+    },
+    {
+      lines = bar("  Plugins", plugin_count, cap.plugins, "", "Special"),
+      w = barlen - table_w - 1,
+    },
   }
   local right = voltui.grid_col {
-    { lines = bar("  Total Ever", total_ever, cap.plugins_ever, "", "WrappedBlue0"), w = table_w + 1, pad = 2 },
-    { lines = bar("  Lines", total_lines, cap.lines, "", "WrappedRed0"), w = barlen - table_w - 1 },
+    {
+      lines = bar(
+        "  Total Ever",
+        total_ever,
+        cap.plugins_ever,
+        "",
+        "WrappedBlue0"
+      ),
+      w = table_w + 1,
+      pad = 2,
+    },
+    {
+      lines = bar("  Lines", total_lines, cap.lines, "", "WrappedRed0"),
+      w = barlen - table_w - 1,
+    },
   }
 
   return voltui.grid_col {
@@ -80,10 +110,18 @@ function M.plugins_files(plugin_history, file_stats)
   local oldest = plugin_history and plugin_history.oldest_plugin
   local newest = plugin_history and plugin_history.newest_plugin
 
-  local oldest_tbl = plugin_table("󰐱  Oldest Unupdated Plugin", oldest and oldest.name, oldest and oldest.date)
+  local oldest_tbl = plugin_table(
+    "󰐱  Oldest Unupdated Plugin",
+    oldest and oldest.name,
+    oldest and oldest.date
+  )
   oldest_tbl[1][1][2] = "WrappedBlue0"
 
-  local newest_tbl = plugin_table("  Newest Updated Plugin", newest and newest.name, newest and newest.date)
+  local newest_tbl = plugin_table(
+    "  Newest Updated Plugin",
+    newest and newest.name,
+    newest and newest.date
+  )
   newest_tbl[1][1][2] = "WrappedGreen0"
 
   local left = voltui.grid_col {
@@ -95,9 +133,21 @@ function M.plugins_files(plugin_history, file_stats)
   local s = file_stats.smallest
 
   local file_tbl = voltui.table({
-    { { { truncate(b.name or "None", barlen - 20), "Normal" }, { " - ", "Comment" }, { (b.lines or 0) .. " lines", "Comment" } } },
-    { { { truncate(s.name or "None", barlen - 20), "Normal" }, { " - ", "Comment" }, { (s.lines or 0) .. " lines", "Comment" } } },
-  }, barlen - 2, "normal", { "  Biggest & smallest file", "WrappedYellow0" })
+    {
+      {
+        { truncate(b.name or "None", barlen - 20), "Normal" },
+        { " - ", "Comment" },
+        { (b.lines or 0) .. " lines", "Comment" },
+      },
+    },
+    {
+      {
+        { truncate(s.name or "None", barlen - 20), "Normal" },
+        { " - ", "Comment" },
+        { (s.lines or 0) .. " lines", "Comment" },
+      },
+    },
+  }, barlen - 2, "normal", { "  Biggest & smallest file", "WrappedYellow0" })
 
   return voltui.grid_col {
     { lines = left, w = barlen, pad = 0 },
@@ -112,17 +162,20 @@ end
 function M.top_files(file_stats, width)
   local col_w = math.floor((width - 1) / 2)
 
-  local type_data = { { "  Extension", " Lines" } }
+  local type_data = { { "  Extension", " Lines" } }
   for i, stat in ipairs(file_stats.lines_by_type) do
     if i > 5 then break end
     table.insert(type_data, { stat.name, tostring(stat.lines) })
   end
 
-  local file_data = { { "  File", " Lines" } }
+  local file_data = { { "  File", " Lines" } }
   for i, stat in ipairs(file_stats.top_files or {}) do
     if i > 5 then break end
     local name = vim.fn.fnamemodify(stat.name, ":t")
-    table.insert(file_data, { truncate(name, col_w - 14), tostring(stat.lines) })
+    table.insert(
+      file_data,
+      { truncate(name, col_w - 14), tostring(stat.lines) }
+    )
   end
 
   return voltui.grid_col {
@@ -143,8 +196,8 @@ function M.streak_table(config_stats, width)
   local streak_start = config_stats.longest_streak_start or "None"
   local streak_end = config_stats.longest_streak_end or "None"
 
-  local h_header = "  Highest"
-  local l_header = "  Lowest"
+  local h_header = "  Highest"
+  local l_header = "  Lowest"
   local s_header = "󰃭  Streak"
   local h_data = hi_day.count .. " (" .. hi_day.date .. ")"
   local l_data = lo_day.count .. " (" .. lo_day.date .. ")"
@@ -152,8 +205,12 @@ function M.streak_table(config_stats, width)
 
   local get_w = api.nvim_strwidth
   local max_w = math.max(
-    get_w(h_header), get_w(l_header), get_w(s_header),
-    get_w(h_data), get_w(l_data), get_w(s_data)
+    get_w(h_header),
+    get_w(l_header),
+    get_w(s_header),
+    get_w(h_data),
+    get_w(l_data),
+    get_w(s_data)
   )
 
   local function pad(s)
