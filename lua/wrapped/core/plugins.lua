@@ -1,7 +1,7 @@
 ---@class Wrapped.Core.Plugins
 local M = {}
 
-local function get_path() return require("wrapped").config.path end
+local function get_path() return require("wrapped.state").config.path end
 
 ---@return integer count
 function M.get_count()

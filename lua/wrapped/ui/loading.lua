@@ -1,5 +1,5 @@
 local api = vim.api
-local highlights = require "wrapped.ui.highlights"
+local highlights = require "wrapped.ui.hl"
 
 local M = {}
 local state = {
@@ -16,12 +16,12 @@ local frames =
 function M.open()
   if state.win and api.nvim_win_is_valid(state.win) then return end
 
-  local config = require("wrapped").config
   local wstate = require "wrapped.state"
+  local config = wstate.config
   state.buf = api.nvim_create_buf(false, true)
 
   local text = "Loading Wrapped"
-  local x, y = wstate.xpad or 2, wstate.ypad or 1
+  local x, y = wstate.xpad, wstate.ypad
   local w, h = #text + 4 + (x * 2) - 1, 1 + (y * 2)
   local border_opts = (type(config.border) == "string" and config.border)
     or (config.border and "single")
