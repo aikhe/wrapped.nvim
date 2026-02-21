@@ -1,8 +1,8 @@
 ---@class Wrapped.Core.Plugins
 local M = {}
 
+---@return string path
 local function get_path() return require("wrapped.state").config.path end
-
 ---@return integer count
 function M.get_count()
   local ok, lazy = pcall(require, "lazy")

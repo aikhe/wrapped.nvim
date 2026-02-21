@@ -1,3 +1,6 @@
+---@class Wrapped.Ui
+local M = {}
+
 local api = vim.api
 local volt = require "volt"
 local voltui = require "volt.ui"
@@ -8,9 +11,6 @@ local heatmap = require "wrapped.dashboard.heatmap"
 local bars = require "wrapped.dashboard.bars"
 local tables = require "wrapped.dashboard.tables"
 local plugins_mod = require "wrapped.core.plugins"
-
----@class Wrapped.Ui
-local M = {}
 
 local function close()
   if state.win then pcall(api.nvim_win_close, state.win, true) end

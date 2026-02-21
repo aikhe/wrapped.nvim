@@ -1,8 +1,7 @@
-local api = vim.api
 local voltui = require "volt.ui"
 local state = require "wrapped.state"
 
----@class Wrapped.UI.Sections
+---@class Wrapped.UI.Bars
 local M = {}
 
 -- 4 progress bars: commits, plugins, ever installed, total lines
