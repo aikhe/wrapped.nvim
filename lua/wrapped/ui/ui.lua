@@ -190,7 +190,7 @@ local function build_size_chart(size_history, target_width)
 
   local chart_data = {
     val = display_vals,
-    footer_label = { "󰔵  Config Size Over Time", "WrappedTitle" },
+    footer_label = { "󰉋  Config Size Over Time", "WrappedGreen0" },
 
     format_labels = function(x)
       local val = math.floor(baseline + (x / 100) * range)
@@ -271,7 +271,7 @@ local function build_plugin_growth_chart(plugin_history, target_width)
 
   local chart_data = {
     val = display_vals,
-    footer_label = { "󰔵  Plugin growth overtime", "WrappedTitle" },
+    footer_label = { "󰐱  Plugin Growth Overtime", "WrappedBlue0" },
     format_labels = function(x)
       local val = math.floor(baseline + (x / 100) * range)
       return tostring(val)
@@ -329,7 +329,7 @@ local function build_commit_freq_chart(commit_history, target_width)
   local chart_data = {
     val = display_vals,
     width = target_width,
-    footer_label = { "󰔵  Config Changes Frequency", "WrappedTitle" },
+    footer_label = { "󰔵  Config Changes Frequency", "WrappedYellow0" },
     format_labels = function(x)
       if x == 10 then return "0" end
       local val = 1 + math.floor(((x - 20) / 80) * (max_val - 1))
@@ -338,7 +338,7 @@ local function build_commit_freq_chart(commit_history, target_width)
     baropts = {
       sidelabels = true,
       icons = { on = " 󰄰", off = " ·" },
-      hl = { on = "WrappedBlue0", off = "Comment" },
+      hl = { on = "WrappedYellow0", off = "Comment" },
     },
   }
 
@@ -491,7 +491,7 @@ local function build_top_files_table(file_stats, width)
   local col_w = math.floor((width - inner_gap) / 2)
 
   -- top 5 file types by total lines
-  local type_data = { { "  Extension", "󰅪  Lines" } } ---@type string[][]
+  local type_data = { { "  Extension", " Lines" } } ---@type string[][]
   for i, stat in ipairs(file_stats.lines_by_type) do
     if i > 5 then break end
     table.insert(type_data, { stat.name, tostring(stat.lines) })
@@ -499,7 +499,7 @@ local function build_top_files_table(file_stats, width)
   local type_tbl = voltui.table(type_data, col_w, "Special")
 
   -- top 5 individual files by lines
-  local file_data = { { "  File", "󰅪  Lines" } } ---@type string[][]
+  local file_data = { { "  File", " Lines" } } ---@type string[][]
   for i, stat in ipairs(file_stats.top_files or {}) do
     if i > 5 then break end
     local name = vim.fn.fnamemodify(stat.name, ":t")
@@ -601,9 +601,9 @@ local function build_content(
       local streak_start = config_stats.longest_streak_start or "None"
       local streak_end = config_stats.longest_streak_end or "None"
 
-      local h_header = "  Highest"
-      local l_header = "  Lowest"
-      local s_header = "󰔵  Streak"
+      local h_header = "  Highest"
+      local l_header = "  Lowest"
+      local s_header = "󰃭  Streak"
       local h_data = tostring(hi_day.count) .. " (" .. hi_day.date .. ")"
       local l_data = tostring(lo_day.count) .. " (" .. lo_day.date .. ")"
       local s_data = streak_start .. " to " .. streak_end
@@ -631,7 +631,7 @@ local function build_content(
         { p(h_data), p(l_data), p(s_data) },
       }
 
-      local extrema_table = voltui.table(extrema_tbl, table_w, "Special")
+      local extrema_table = voltui.table(extrema_tbl, table_w, "WrappedRed0")
       vim.list_extend(lines, extrema_table)
     end
   end
