@@ -114,7 +114,7 @@ end
 ---@param cb fun(data: Wrapped.GitStats)
 function M.get_all_data_async(year, cb)
   local data = {} ---@type Wrapped.GitStats
-  local total = 4
+  local total = 5
   local count = 0
 
   local function check()
@@ -212,52 +212,46 @@ function M.get_all_data_async(year, cb)
         return
       end
 
-      vim.system(
-        { "git", "hash-object", "-t", "tree", "/dev/null" },
-        { cwd = get_path(), text = true },
-        function(obj_out)
-          local empty_tree = (obj_out.stdout or ""):match "%S+"
-          local samples = {}
-          local step = math.max(1, math.floor(#log_lines / 49))
-          for i = 1, #log_lines, step do
-            table.insert(samples, log_lines[i])
-          end
-          if samples[#samples] ~= log_lines[#log_lines] then
-            table.insert(samples, log_lines[#log_lines])
-          end
+      local empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+      local samples = {}
+      local step = math.max(1, math.floor(#log_lines / 49))
+      for i = 1, #log_lines, step do
+        table.insert(samples, log_lines[i])
+      end
+      if samples[#samples] ~= log_lines[#log_lines] then
+        table.insert(samples, log_lines[#log_lines])
+      end
 
-          local values, labels = {}, {}
+      local values, labels = {}, {}
 
-          -- sequential chain to avoid blocking event loop
-          local function process_next(i)
-            if i > #samples then
-              vim.schedule(function()
-                data.size_history = { values = values, labels = labels }
-                check()
-              end)
-              return
-            end
+      -- sequential chain to avoid blocking event loop
+      local function process_next(i)
+        if i > #samples then
+          vim.schedule(function()
+            data.size_history = { values = values, labels = labels }
+            check()
+          end)
+          return
+        end
 
-            local hash, date = samples[i]:match "(%S+)%s+(%S+)"
-            if hash and empty_tree then
-              vim.system(
-                { "git", "diff", "--shortstat", empty_tree, hash },
-                { cwd = get_path(), text = true },
-                function(diff_out)
-                  local ins = (diff_out.stdout or ""):match "(%d+) insertion"
-                  table.insert(values, ins and tonumber(ins, 10) or 0)
-                  table.insert(labels, date)
-                  process_next(i + 1)
-                end
-              )
-            else
+        local hash, date = samples[i]:match "(%S+)%s+(%S+)"
+        if hash and empty_tree then
+          vim.system(
+            { "git", "diff", "--shortstat", empty_tree, hash },
+            { cwd = get_path(), text = true },
+            function(diff_out)
+              local ins = (diff_out.stdout or ""):match "(%d+) insertion"
+              table.insert(values, ins and tonumber(ins, 10) or 0)
+              table.insert(labels, date)
               process_next(i + 1)
             end
-          end
-
-          process_next(1)
+          )
+        else
+          process_next(i + 1)
         end
-      )
+      end
+
+      process_next(1)
     end
   )
 end
