@@ -1,22 +1,24 @@
 # Wrapped
 
+[![Mentioned in Awesome Neovim](https://awesome.re/mentioned-badge.svg)](https://github.com/rockerBOO/awesome-neovim)
+
 Visualize and review your Neovim configuration activity with stats, insights, history, and heatmaps.
 
-![wrapped](https://github.com/user-attachments/assets/624d7d7f-5eb2-447d-bb8b-5f24b3adbbe9)
-![wrapped border](https://github.com/user-attachments/assets/b50724de-0576-4034-9cd0-bc86eb427139)
+![Wrapped Tokyonight](https://github.com/user-attachments/assets/e82fdcb7-96bb-443b-bd0c-46a0ed345793)
+![Wrapped Fleur](https://github.com/user-attachments/assets/0e8e5e12-508a-4836-b87c-67797d98f890)
 
 ## Features
 
-- **Git Analytics**: Visualize your commit history, streaks, and total activity.
-- **Commit Heatmap**: A contribution graph view.
-- **Plugin Insights**: Track your plugin usage, installation history, and total count.
-- **File Statistics**: Analyze your codebase with top file types and size growth over time.
+- **Progress Bars**: Track commits, plugins, total ever installed, and total lines.
+- **Commit Heatmap**: A GitHub-style contribution graph with year cycling, month-colored columns, and intensity levels.
+- **Plugin Insights**: Oldest/newest plugin age, total ever installed count, and a plugin growth chart over time.
+- **File Statistics**: Biggest/smallest files, top 5 file types, top 5 files by line count.
+- **Git Analytics**: Commit streaks, highest/lowest activity days, config lifetime, last change, and config size over time chart.
+- **Config Changes Frequency**: A dot graph showing monthly commit frequency.
 - **Visual Dashboard**: A beautiful, component-based UI powered by [`nvzone/volt`](https://github.com/nvzone/volt).
 
 > [!IMPORTANT]
-> This plugin is currently a **prototype** and is **very unstable**.
-> I made this version to have a quick iteration and see what I can do. But ofcourse future updates will aim to be stable, optimized, bug-free, compatible, and fast.
-> I’d love to hear any feedbacks, issues, and contributions if you have any.
+> This plugin is in it's early stage so I'd love to hear any feedbacks, issues, and contributions if you have any!~
 
 ## Installation
 
@@ -32,7 +34,7 @@ Visualize and review your Neovim configuration activity with stats, insights, hi
 {
   "aikhe/wrapped.nvim",
   dependencies = { "nvzone/volt" },
-  cmd = { "NvimWrapped" },
+  cmd = { "WrappedNvim" },
   opts = {},
 }
 ```
@@ -42,7 +44,7 @@ Visualize and review your Neovim configuration activity with stats, insights, hi
 Run the following command to open the dashboard:
 
 ```vim
-:NvimWrapped
+:WrappedNvim
 ```
 
 ## Mappings
@@ -56,7 +58,7 @@ Run the following command to open the dashboard:
 
 ```lua
 require("wrapped").setup({
-  path = vim.fn.stdpath("config"), -- path to your neovim configuration (defaults to nvim config)
+  path = vim.fn.stdpath("config"), -- path to your neovim configuration
   border = false,
   size = {
     width = 120,
@@ -76,11 +78,10 @@ require("wrapped").setup({
 
 ## How it Works
 
-> **Note**: Lots of inneffiency since im mostly new to this stuff and still learning but I'll make sure to iterate on it and make better changes.
+All data collection is fully async via `vim.system` callbacks and runs concurrently across three tasks. A loading screen is displayed until all tasks resolve, then the dashboard renders in a single pass.
 
-- **Git Analytics**: Aggregates history via standard Git CLI commands (e.g., `git log`, `git rev-list`) executed using `vim.system` API. The "Config Size" chart samples your commit history and performs a `git diff --shortstat` against an empty tree at each point to estimate line growth.
-- **Plugin Tracking**:
-  - **Current**: Interfaces directly with the `lazy.stats()` API for active plugin counts.
-  - **Total Ever**: Scans `git log` patches for new plugin definitions (specifically within `lua/plugins`) using `vim.system` to estimate how many unique plugins you've tried.
-  - **Age**: Inspects the local git history of each installed plugin in parallel using `vim.system` callbacks to find the oldest and newest additions to your current setup.
-- **File Analysis**: Recursively scans your configuration directory using native Neovim APIs (`vim.fs.dir`). It parses files to calculate total line counts, distribution by file extension, and identifies your largest/smallest configuration files.
+### Processes
+
+- **Git** (`core/git.lua`): Runs 5 concurrent `git` commands — `rev-list --count` for total commits, `git log --reverse` for first commit date, `git log --format=%ad` for config stats (streak calculation, highest/lowest day, monthly commit frequency, lifetime & last change), commit activity grouped by `ddmmyyyy` keys for the heatmap, and a sequential `git diff --shortstat` chain against the empty tree across ~50 sampled commits for the config size history.
+- **Files** (`core/files.lua`): Uses `git diff --numstat` against the empty tree hash for per-file line counts of tracked files, plus `git ls-files --others` with `io.open` for untracked files. Aggregates total lines, biggest/smallest file, lines by extension, and top files.
+- **Plugins** (`core/plugins.lua`): Scans `git log -p` patches for `user/repo` patterns in added lines to count total ever installed plugins and build a growth timeline. Queries `lazy.nvim` for current plugin list, then sequentially runs `git log -1 --format=%at` in each plugin directory to find the oldest and newest plugins.
