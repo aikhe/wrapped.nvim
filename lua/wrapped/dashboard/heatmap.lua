@@ -9,12 +9,12 @@ local month_colors = highlights.month_colors
 
 -- zero-padded two digits
 ---@param n integer
----@return string
-local function dd(n) return n < 10 and "0" .. n or tostring(n) end
+---@return string digits
+local function dd(n) return ("%02d"):format(n) end
 
 -- returns intensity 0 (brightest) to 3 (dimmest)
 ---@param n integer
----@return string
+---@return "0"|"1"|"2"|"3" intensity
 local function get_intensity(n)
   if n > 5 then return "0" end
   if n > 2 then return "1" end
@@ -23,7 +23,7 @@ local function get_intensity(n)
 end
 
 ---@param y integer
----@return boolean
+---@return boolean leap
 local function is_leap(y) return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0) end
 
 ---@param activity table<string, integer>
@@ -45,12 +45,24 @@ function M.build(activity, width)
     "Nov",
     "Dec",
   }
-  local days_in = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
-  if is_leap(year) then days_in[2] = 29 end
+  local days_in = {
+    31,
+    is_leap(year) and 29 or 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  }
   local day_names = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
 
   -- month header row with cycling color
-  local header = { { " »", "Comment" }, { "  " } }
+  local header = { { " »", "Comment" }, { "  " } } ---@type string[][]
   for i = 1, 12 do
     local color = month_colors[((i - 1) % #month_colors) + 1]
     table.insert(header, { "  " .. months[i] .. "  ", "Ex" .. color })
@@ -59,7 +71,7 @@ function M.build(activity, width)
 
   local xpad = state.xpad or 0
   local sep = voltui.separator("─", width - xpad * 2 - 4, "Comment")
-  local lines = { header, sep }
+  local lines = { header, sep } ---@type string[][][]
 
   -- 7 weekday rows
   for d = 1, 7 do
@@ -94,7 +106,7 @@ function M.build(activity, width)
   voltui.border(lines, "Comment")
 
   -- legend row
-  local legend = {
+  local legend = { ---@type string[][]
     { "  Commit Activity", "WrappedGreen0" },
     { "  " },
     { "« ", "Comment" },
