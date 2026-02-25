@@ -5,7 +5,7 @@ local M = {}
 
 ---@param vals integer[]
 ---@param max_items integer
----@return integer[]
+---@return integer[] out
 local function downsample(vals, max_items)
   if #vals <= max_items then return vals end
   local out = {}
@@ -122,7 +122,7 @@ function M.commit_freq(commit_history, width)
   local max_val = math.max(unpack(commit_history))
   if max_val == 0 then max_val = 1 end
 
-  local scaled = {}
+  local scaled = {} ---@type integer[]
   for _, v in ipairs(commit_history) do
     if v <= 0 then
       table.insert(scaled, 0)
