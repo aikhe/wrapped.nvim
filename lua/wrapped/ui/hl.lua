@@ -1,5 +1,3 @@
-require "volt.highlights"
-
 local api = vim.api
 local get_hl = require("volt.utils").get_hl
 local lighten = require("volt.color").change_hex_lightness
@@ -21,6 +19,7 @@ M.month_colors = { "Red", "Green", "Blue", "Yellow" }
 
 ---@param ns integer
 function M.apply_float(ns)
+  if not get_hl("ExBlue").fg then require "volt.highlights" end
   local config = require("wrapped.state").config
 
   local bg = get_bg()
