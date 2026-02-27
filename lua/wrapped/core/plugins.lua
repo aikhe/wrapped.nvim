@@ -2,7 +2,11 @@
 local M = {}
 
 ---@return string path
-local function get_path() return require("wrapped.state").config.path end
+local function get_path()
+  local p = require("wrapped.state").config.path or ""
+  if p:sub(1, 1) == "~" then p = (os.getenv("HOME") or "") .. p:sub(2) end
+  return p
+end
 ---@return integer count
 function M.get_count()
   local ok, lazy = pcall(require, "lazy")
