@@ -72,19 +72,17 @@ local function build_content(results)
   table.insert(lines, { { " ", "" } })
 
   -- charts row (size + plugin growth)
-  if size_history and #size_history.values > 0 then
-    local size_chart = charts.size(size_history, left_w)
-    local growth_chart = charts.plugin_growth(plugin_history, right_w + 4)
+  local size_chart = charts.size(size_history, left_w)
+  local growth_chart = charts.plugin_growth(plugin_history, right_w + 4)
 
-    vim.list_extend(
-      lines,
-      voltui.grid_col {
-        { lines = size_chart, w = left_w, pad = gap },
-        { lines = growth_chart, w = right_w },
-      }
-    )
-    table.insert(lines, { { " ", "" } })
-  end
+  vim.list_extend(
+    lines,
+    voltui.grid_col {
+      { lines = size_chart, w = left_w, pad = gap },
+      { lines = growth_chart, w = right_w },
+    }
+  )
+  table.insert(lines, { { " ", "" } })
 
   -- bottom row (freq chart + top files)
   local freq_chart = charts.commit_freq(
@@ -93,17 +91,13 @@ local function build_content(results)
   )
   local top_files = tables.top_files(files, left_w)
 
-  if #freq_chart > 0 then
-    vim.list_extend(
-      lines,
-      voltui.grid_col {
-        { lines = freq_chart, w = right_w, pad = gap },
-        { lines = top_files, w = left_w },
-      }
-    )
-  else
-    vim.list_extend(lines, top_files)
-  end
+  vim.list_extend(
+    lines,
+    voltui.grid_col {
+      { lines = freq_chart, w = right_w, pad = gap },
+      { lines = top_files, w = left_w },
+    }
+  )
 
   -- vertical padding
   for _ = 1, state.ypad do

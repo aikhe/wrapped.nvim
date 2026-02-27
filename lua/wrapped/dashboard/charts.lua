@@ -21,8 +21,27 @@ end
 ---@param width integer
 ---@return string[][][] chart
 function M.size(size_history, width)
-  local vals = size_history.values
-  if #vals == 0 then return {} end
+  local bar_w, bar_gap = 1, 1
+  local max_items = math.floor((width - 8) / (bar_w + bar_gap))
+  if max_items < 1 then max_items = 1 end
+
+  local vals = size_history and size_history.values or {}
+  if #vals == 0 then
+    local scaled = {}
+    for _ = 1, max_items do
+      table.insert(scaled, 0)
+    end
+    return voltui.graphs.bar {
+      val = scaled,
+      footer_label = { "󰉋  Config Size Over Time", "WrappedGreen0" },
+      format_labels = function() return "0" end,
+      baropts = {
+        w = bar_w,
+        gap = bar_gap,
+        format_hl = function() return "WrappedGreen3" end,
+      },
+    }
+  end
 
   local min_val = math.min(unpack(vals))
   local max_val = math.max(unpack(vals))
@@ -40,8 +59,6 @@ function M.size(size_history, width)
     table.insert(scaled, math.floor(((v - baseline) / range) * 100))
   end
 
-  local bar_w, bar_gap = 1, 1
-  local max_items = math.floor((width - 8) / (bar_w + bar_gap))
   scaled = downsample(scaled, max_items)
 
   return voltui.graphs.bar {
@@ -69,10 +86,32 @@ end
 ---@param width integer
 ---@return string[][][] chart
 function M.plugin_growth(plugin_history, width)
-  if not plugin_history then return {} end
-  local growth = plugin_history.growth
-  if not growth or #growth == 0 then return {} end
+  local bar_w, bar_gap = 2, 1
+  local max_bars = math.floor((width - 10) / (bar_w + bar_gap))
+  if max_bars < 1 then max_bars = 1 end
 
+  if
+    not plugin_history
+    or not plugin_history.growth
+    or #plugin_history.growth == 0
+  then
+    local scaled = {}
+    for _ = 1, max_bars do
+      table.insert(scaled, 0)
+    end
+    return voltui.graphs.bar {
+      val = scaled,
+      footer_label = { "󰐱  Plugin Growth Overtime", "WrappedBlue0" },
+      format_labels = function() return "0" end,
+      baropts = {
+        w = bar_w,
+        gap = bar_gap,
+        dual_hl = { "WrappedBlue0", "WrappedBlue2" },
+      },
+    }
+  end
+
+  local growth = plugin_history.growth or {}
   local vals = {}
   for _, entry in ipairs(growth) do
     table.insert(vals, entry.count or 0)
@@ -94,9 +133,6 @@ function M.plugin_growth(plugin_history, width)
     table.insert(scaled, math.min(100, math.max(0, pct)))
   end
 
-  local bar_w, bar_gap = 2, 1
-  local max_bars = math.floor((width - 10) / (bar_w + bar_gap))
-  if max_bars < 1 then max_bars = 1 end
   scaled = downsample(scaled, max_bars)
 
   return voltui.graphs.bar {
@@ -117,7 +153,28 @@ end
 ---@param width integer
 ---@return string[][][] chart
 function M.commit_freq(commit_history, width)
-  if not commit_history or #commit_history == 0 then return {} end
+  local max_bars = math.floor((width - 10) / 3)
+  if max_bars < 1 then max_bars = 1 end
+
+  if not commit_history or #commit_history == 0 then
+    local scaled = {}
+    for _ = 1, max_bars do
+      table.insert(scaled, 0)
+    end
+    local chart = voltui.graphs.dot {
+      val = scaled,
+      width = width,
+      footer_label = { "󰔵  Config Changes Frequency", "WrappedYellow0" },
+      format_labels = function() return "0" end,
+      baropts = {
+        sidelabels = true,
+        icons = { on = " 󰄰", off = " ·" },
+        hl = { on = "WrappedYellow0", off = "Comment" },
+      },
+    }
+    table.insert(chart, 1, { { " ", "" } })
+    return chart
+  end
 
   local max_val = math.max(unpack(commit_history))
   if max_val == 0 then max_val = 1 end
@@ -131,9 +188,6 @@ function M.commit_freq(commit_history, width)
       table.insert(scaled, math.min(100, pct))
     end
   end
-
-  local max_bars = math.floor((width - 10) / 3)
-  if max_bars < 1 then max_bars = 1 end
 
   local display_vals = scaled
   if #scaled ~= max_bars and #scaled > 0 then

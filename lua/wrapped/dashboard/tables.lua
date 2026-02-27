@@ -81,8 +81,8 @@ function M.plugins_files(plugin_history, file_stats, width)
     { lines = newest_tbl, w = barlen - table_w - 2 },
   }
 
-  local b = file_stats.biggest
-  local s = file_stats.smallest
+  local b = (file_stats and file_stats.biggest) or {}
+  local s = (file_stats and file_stats.smallest) or {}
 
   local file_tbl = voltui.table({
     {
@@ -115,19 +115,29 @@ function M.top_files(file_stats, width)
   local col_w = math.floor((width - 1) / 2)
 
   local type_data = { { "  Extension", " Lines" } }
-  for i, stat in ipairs(file_stats.lines_by_type) do
-    if i > 5 then break end
-    table.insert(type_data, { stat.name, tostring(stat.lines) })
+  for i = 1, 5 do
+    local stat = file_stats
+      and file_stats.lines_by_type
+      and file_stats.lines_by_type[i]
+    if stat then
+      table.insert(type_data, { stat.name, tostring(stat.lines) })
+    else
+      table.insert(type_data, { "-", "0" })
+    end
   end
 
   local file_data = { { "  File", " Lines" } }
-  for i, stat in ipairs(file_stats.top_files or {}) do
-    if i > 5 then break end
-    local name = vim.fn.fnamemodify(stat.name, ":t")
-    table.insert(
-      file_data,
-      { truncate(name, col_w - 14), tostring(stat.lines) }
-    )
+  for i = 1, 5 do
+    local stat = file_stats and file_stats.top_files and file_stats.top_files[i]
+    if stat then
+      local name = vim.fn.fnamemodify(stat.name, ":t")
+      table.insert(
+        file_data,
+        { truncate(name, col_w - 14), tostring(stat.lines) }
+      )
+    else
+      table.insert(file_data, { "-", "0" })
+    end
   end
 
   return voltui.grid_col {
