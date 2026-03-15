@@ -49,8 +49,9 @@ Run the following command to open the dashboard:
 
 ## Mappings
 
-| Key | Action    |
+| Key | Action |
 | --- | --------- |
+| `<leader>gw` | Open dashboard |
 | `<` | prev year |
 | `>` | next year |
 
