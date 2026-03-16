@@ -10,8 +10,18 @@ local loading = require "wrapped.ui.loading"
 ---@param opts? WrappedConfig
 M.setup = function(opts)
   state.config = vim.tbl_deep_extend("force", state.config, opts or {})
+  
+  -- Auto-detect: use current directory if no path specified
   if not state.config.path or state.config.path == "" then
-    state.config.path = vim.fn.stdpath "config" --[[@as string]]
+    state.config.path = vim.fn.getcwd() -- auto-detect current directory
+  end
+
+  -- Set up keybindings
+  local keys = state.config.keys
+  if keys and keys.open and keys.open ~= "<leader>gw" then
+    -- User customized: remove default and set custom
+    vim.keymap.del("n", "<leader>gw")
+    vim.keymap.set("n", keys.open, ":WrappedNvim<CR>", { desc = "Open Wrapped dashboard" })
   end
 end
 

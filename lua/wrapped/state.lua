@@ -4,7 +4,7 @@ local api = vim.api
 local M = {
   -- user config
   config = {
-    path = vim.fn.stdpath "config",
+    path = "", -- auto-detect current directory
     border = false,
     size = { width = 120, height = 40 },
     exclude_filetype = { ".gitmodules" },
@@ -13,6 +13,13 @@ local M = {
       plugins = 100,
       plugins_ever = 200,
       lines = 10000,
+    },
+    keys = {
+      open = "<leader>gw",
+      close = "q",
+      refresh = "r",
+      prev_year = "<",
+      next_year = ">",
     },
   },
 

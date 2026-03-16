@@ -49,16 +49,19 @@ Run the following command to open the dashboard:
 
 ## Mappings
 
-| Key | Action    |
+| Key | Action |
 | --- | --------- |
-| `<` | prev year |
-| `>` | next year |
+| `<leader>gw` | Open dashboard (configurable) |
+| `<` | prev year (configurable) |
+| `>` | next year (configurable) |
+| `q` | Close dashboard (configurable) |
+| `r` | Refresh data (configurable) |
 
 ## Default Config
 
 ```lua
 require("wrapped").setup({
-  path = vim.fn.stdpath("config"), -- path to your neovim configuration
+  path = "", -- auto-detects current directory (or specify custom path)
   border = false,
   size = {
     width = 120,
@@ -72,6 +75,13 @@ require("wrapped").setup({
     plugins = 100,
     plugins_ever = 200,
     lines = 10000,
+  },
+  keys = {
+    open = "<leader>gw",
+    close = "q",
+    refresh = "r",
+    prev_year = "<",
+    next_year = ">",
   },
 })
 ```
