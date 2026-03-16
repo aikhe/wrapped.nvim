@@ -14,6 +14,13 @@ local M = {
       plugins_ever = 200,
       lines = 10000,
     },
+    keys = {
+      open = "<leader>gw",
+      close = "q",
+      refresh = "r",
+      prev_year = "<",
+      next_year = ">",
+    },
   },
 
   -- layout

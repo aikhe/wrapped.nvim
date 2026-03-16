@@ -13,6 +13,14 @@ M.setup = function(opts)
   if not state.config.path or state.config.path == "" then
     state.config.path = vim.fn.stdpath "config" --[[@as string]]
   end
+
+  -- Set up keybindings
+  local keys = state.config.keys
+  if keys and keys.open and keys.open ~= "<leader>gw" then
+    -- User customized: remove default and set custom
+    vim.keymap.del("n", "<leader>gw")
+    vim.keymap.set("n", keys.open, ":WrappedNvim<CR>", { desc = "Open Wrapped dashboard" })
+  end
 end
 
 M.run = function()

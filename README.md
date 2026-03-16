@@ -51,9 +51,11 @@ Run the following command to open the dashboard:
 
 | Key | Action |
 | --- | --------- |
-| `<leader>gw` | Open dashboard |
-| `<` | prev year |
-| `>` | next year |
+| `<leader>gw` | Open dashboard (configurable) |
+| `<` | prev year (configurable) |
+| `>` | next year (configurable) |
+| `q` | Close dashboard (configurable) |
+| `r` | Refresh data (configurable) |
 
 ## Default Config
 
@@ -73,6 +75,13 @@ require("wrapped").setup({
     plugins = 100,
     plugins_ever = 200,
     lines = 10000,
+  },
+  keys = {
+    open = "<leader>gw",
+    close = "q",
+    refresh = "r",
+    prev_year = "<",
+    next_year = ">",
   },
 })
 ```
