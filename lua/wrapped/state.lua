@@ -4,7 +4,7 @@ local api = vim.api
 local M = {
   -- user config
   config = {
-    path = vim.fn.stdpath "config",
+    path = "", -- auto-detect current directory
     border = false,
     size = { width = 120, height = 40 },
     exclude_filetype = { ".gitmodules" },

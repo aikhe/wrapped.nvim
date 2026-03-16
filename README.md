@@ -61,7 +61,7 @@ Run the following command to open the dashboard:
 
 ```lua
 require("wrapped").setup({
-  path = vim.fn.stdpath("config"), -- path to your neovim configuration
+  path = "", -- auto-detects current directory (or specify custom path)
   border = false,
   size = {
     width = 120,
