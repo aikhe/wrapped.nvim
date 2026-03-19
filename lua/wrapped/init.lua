@@ -14,12 +14,16 @@ M.setup = function(opts)
     state.config.path = vim.fn.stdpath "config" --[[@as string]]
   end
 
-  -- Set up keybindings
-  local keys = state.config.keys
-  if keys and keys.open and keys.open ~= "<leader>gw" then
-    -- User customized: remove default and set custom
-    vim.keymap.del("n", "<leader>gw")
-    vim.keymap.set("n", keys.open, ":WrappedNvim<CR>", { desc = "Open Wrapped dashboard" })
+  -- Validate keys configuration
+  local valid_keys = { close = true, refresh = true, prev_year = true, next_year = true }
+  local user_keys = state.config.keys or {}
+  for key in pairs(user_keys) do
+    if not valid_keys[key] then
+      vim.notify(
+        "[wrapped] Unknown key: " .. key .. ". Valid keys: close, refresh, prev_year, next_year",
+        vim.log.levels.WARN
+      )
+    end
   end
 end
 
