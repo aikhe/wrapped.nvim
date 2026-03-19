@@ -15,7 +15,6 @@ local M = {
       lines = 10000,
     },
     keys = {
-      open = "<leader>gw",
       close = "q",
       refresh = "r",
       prev_year = "<",
