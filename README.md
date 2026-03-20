@@ -49,10 +49,11 @@ Run the following command to open the dashboard:
 
 ## Mappings
 
-| Key | Action    |
+| Key | Action |
 | --- | --------- |
-| `<` | prev year |
-| `>` | next year |
+| `<` | prev year (configurable) |
+| `>` | next year (configurable) |
+| `q` | Close dashboard (configurable) |
 
 ## Default Config
 
@@ -72,6 +73,12 @@ require("wrapped").setup({
     plugins = 100,
     plugins_ever = 200,
     lines = 10000,
+  },
+  keys = {
+    close = "q",
+    refresh = "r",
+    prev_year = "<",
+    next_year = ">",
   },
 })
 ```

@@ -183,9 +183,16 @@ M.open = function(results)
 
   volt.run(buf, { h = content_h, w = w })
 
-  -- keymaps
+  -- keymaps using configurable keys
+  local keys = state.config.keys or {}
   local map_opts = { noremap = true, silent = true, callback = close }
-  api.nvim_buf_set_keymap(buf, "n", "q", "", map_opts)
+
+  -- close key
+  if keys.close then
+    api.nvim_buf_set_keymap(buf, "n", keys.close, "", map_opts)
+  else
+    api.nvim_buf_set_keymap(buf, "n", "q", "", map_opts)
+  end
   api.nvim_buf_set_keymap(buf, "n", "<Esc>", "", map_opts)
 
   -- year cycling
@@ -197,15 +204,18 @@ M.open = function(results)
     heatmap.refresh(buf)
   end
 
+  -- prev/next year keys
+  local prev_year_key = keys.prev_year or "<"
+  local next_year_key = keys.next_year or ">"
   vim.keymap.set(
     "n",
-    "<",
+    prev_year_key,
     function() cycle_year(-1) end,
     { buffer = buf, silent = true }
   )
   vim.keymap.set(
     "n",
-    ">",
+    next_year_key,
     function() cycle_year(1) end,
     { buffer = buf, silent = true }
   )
