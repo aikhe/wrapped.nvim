@@ -11,7 +11,19 @@ local loading = require "wrapped.ui.loading"
 M.setup = function(opts)
   state.config = vim.tbl_deep_extend("force", state.config, opts or {})
   if not state.config.path or state.config.path == "" then
-    state.config.path = vim.fn.stdpath "config" --[[@as string]]
+    local cwd = vim.fn.getcwd()
+    local git_dir = cwd .. "/.git"
+
+    if vim.fn.isdirectory(git_dir) == 1 then
+      state.config.path = cwd
+    else
+      vim.notify(
+        "[wrapped] No se detectó repositorio git en el directorio actual.\n"
+          .. "Por favor especificá una ruta con `require('wrapped').setup({ path = '/tu/repo' })`",
+        vim.log.levels.ERROR
+      )
+      return
+    end
   end
 
   -- Validate keys configuration
@@ -28,6 +40,23 @@ M.setup = function(opts)
 end
 
 M.run = function()
+  -- Validar path antes de ejecutar
+  if not state.config.path or state.config.path == "" then
+    local cwd = vim.fn.getcwd()
+    local git_dir = cwd .. "/.git"
+
+    if vim.fn.isdirectory(git_dir) == 1 then
+      state.config.path = cwd
+    else
+      vim.notify(
+        "[wrapped] No se detectó repositorio git en el directorio actual.\n"
+          .. "Por favor especificá una ruta con `require('wrapped').setup({ path = '/tu/repo' })`",
+        vim.log.levels.ERROR
+      )
+      return
+    end
+  end
+
   ---@type Wrapped.Results
   local results = {}
   local total = 3
