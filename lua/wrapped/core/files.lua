@@ -8,7 +8,7 @@ local function get_path()
   return p
 end
 
---@return string nvim_root
+---@return string nvim_root
 local function get_nvim_root()
   local p = require("wrapped.state").config.nvim_root or ""
   p = (":/%s"):format(p)
@@ -72,86 +72,82 @@ function M.get_stats_async(cb)
         { cwd = config_path, text = true },
         function(diff_out)
           -- also get untracked files
-          vim.system(
-            {
-              "git",
-              "ls-files",
-              "--others",
-              "--exclude-standard",
-              "--",
-              nvim_root,
-            },
-            { cwd = config_path, text = true },
-            function(ls_out)
-              vim.schedule(function()
-                local stats = { ---@type Wrapped.FileStats
-                  total_lines = 0,
-                  biggest = { name = "", lines = 0 },
-                  smallest = { name = "", lines = math.huge },
-                  lines_by_type = {},
-                  top_files = {},
-                }
+          vim.system({
+            "git",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--",
+            nvim_root,
+          }, { cwd = config_path, text = true }, function(ls_out)
+            vim.schedule(function()
+              local stats = { ---@type Wrapped.FileStats
+                total_lines = 0,
+                biggest = { name = "", lines = 0 },
+                smallest = { name = "", lines = math.huge },
+                lines_by_type = {},
+                top_files = {},
+              }
 
-                local excluded_config = require("wrapped.state").config.exclude_filetype
-                  or {}
-                local excluded = {}
-                for _, ext in ipairs(excluded_config) do
-                  excluded[ext] = true
+              local excluded_config = require("wrapped.state").config.exclude_filetype
+                or {}
+              local excluded = {}
+              for _, ext in ipairs(excluded_config) do
+                excluded[ext] = true
+              end
+
+              -- parse tracked/modified
+              local diff_lines =
+                vim.split(diff_out.stdout or "", "\n", { trimempty = true })
+              for _, line in ipairs(diff_lines) do
+                local added, _, file = line:match "^(%d+)%s+(%d+)%s+(.+)$"
+                if added and file then
+                  M._process_file(
+                    stats,
+                    excluded,
+                    file,
+                    tonumber(added, 10) or 0
+                  )
                 end
+              end
 
-                -- parse tracked/modified
-                local diff_lines =
-                  vim.split(diff_out.stdout or "", "\n", { trimempty = true })
-                for _, line in ipairs(diff_lines) do
-                  local added, _, file = line:match "^(%d+)%s+(%d+)%s+(.+)$"
-                  if added and file then
-                    M._process_file(
-                      stats,
-                      excluded,
-                      file,
-                      tonumber(added, 10) or 0
-                    )
+              -- parse untracked
+              local untracked_files =
+                vim.split(ls_out.stdout or "", "\n", { trimempty = true })
+              for _, file in ipairs(untracked_files) do
+                local full_path = config_path .. "/" .. file
+                local f = io.open(full_path, "r")
+
+                if f then
+                  local content = f:read "*a" or ""
+                  f:close()
+                  local _, count = content:gsub("\n", "\n")
+                  if content:len() > 0 and content:sub(-1) ~= "\n" then
+                    count = count + 1
                   end
+                  M._process_file(stats, excluded, file, count)
                 end
+              end
 
-                -- parse untracked
-                local untracked_files =
-                  vim.split(ls_out.stdout or "", "\n", { trimempty = true })
-                for _, file in ipairs(untracked_files) do
-                  local full_path = config_path .. "/" .. file
-                  local f = io.open(full_path, "r")
+              if stats.smallest.lines == math.huge then
+                stats.smallest = { name = "None", lines = 0 }
+              end
 
-                  if f then
-                    local content = f:read "*a" or ""
-                    f:close()
-                    local _, count = content:gsub("\n", "\n")
-                    if content:len() > 0 and content:sub(-1) ~= "\n" then
-                      count = count + 1
-                    end
-                    M._process_file(stats, excluded, file, count)
-                  end
-                end
+              local sorted = {}
+              for k, v in pairs(stats.lines_by_type) do
+                table.insert(sorted, { name = k, lines = v })
+              end
+              table.sort(sorted, function(a, b) return a.lines > b.lines end)
+              stats.lines_by_type = sorted
 
-                if stats.smallest.lines == math.huge then
-                  stats.smallest = { name = "None", lines = 0 }
-                end
+              table.sort(
+                stats.top_files,
+                function(a, b) return a.lines > b.lines end
+              )
 
-                local sorted = {}
-                for k, v in pairs(stats.lines_by_type) do
-                  table.insert(sorted, { name = k, lines = v })
-                end
-                table.sort(sorted, function(a, b) return a.lines > b.lines end)
-                stats.lines_by_type = sorted
-
-                table.sort(
-                  stats.top_files,
-                  function(a, b) return a.lines > b.lines end
-                )
-
-                cb(stats)
-              end)
-            end
-          )
+              cb(stats)
+            end)
+          end)
         end
       )
     end
