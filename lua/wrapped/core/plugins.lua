@@ -4,9 +4,17 @@ local M = {}
 ---@return string path
 local function get_path()
   local p = require("wrapped.state").config.path or ""
-  if p:sub(1, 1) == "~" then p = (os.getenv("HOME") or "") .. p:sub(2) end
+  if p:sub(1, 1) == "~" then p = (os.getenv "HOME" or "") .. p:sub(2) end
   return p
 end
+
+--@return string nvim_root
+local function get_nvim_root()
+  local p = require("wrapped.state").config.nvim_root or ""
+  p = (":/%s"):format(p)
+  return p
+end
+
 ---@return integer count
 function M.get_count()
   local ok, lazy = pcall(require, "lazy")
@@ -15,6 +23,7 @@ end
 
 ---@param cb fun(history: Wrapped.PluginHistory)
 function M.get_history_async(cb)
+  local nvim_root = get_nvim_root()
   vim.system({
     "git",
     "log",
@@ -23,7 +32,7 @@ function M.get_history_async(cb)
     "--format=COMMIT_DATE:%ad",
     "--date=iso",
     "--",
-    ":**/*.lua",
+    nvim_root,
   }, { cwd = get_path(), text = true }, function(result)
     if result.code ~= 0 then
       vim.schedule(function() cb { total_ever_installed = 0 } end)

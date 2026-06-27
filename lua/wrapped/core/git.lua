@@ -4,20 +4,26 @@ local M = {}
 ---@return string path
 local function get_path()
   local p = require("wrapped.state").config.path or ""
-  if p:sub(1, 1) == "~" then p = (os.getenv("HOME") or "") .. p:sub(2) end
+  if p:sub(1, 1) == "~" then p = (os.getenv "HOME" or "") .. p:sub(2) end
+  return p
+end
+
+--@return string nvim_root
+local function get_nvim_root()
+  local p = require("wrapped.state").config.nvim_root or ""
+  p = (":/%s"):format(p)
   return p
 end
 
 ---@param args string[]
 ---@param cb fun(stdout: string)
 local function exec_git(args, cb)
-  vim.system(
-    { "git", unpack(args) },
-    { cwd = get_path(), text = true },
-    function(out)
-      vim.schedule(function() cb(out.stdout or "") end)
-    end
-  )
+  local cmd = { "git" }
+  vim.list_extend(cmd, args)
+  vim.list_extend(cmd, { "--", get_nvim_root() })
+  vim.system(cmd, { cwd = get_path(), text = true }, function(out)
+    vim.schedule(function() cb(out.stdout or "") end)
+  end)
 end
 
 -- seconds to human-readable

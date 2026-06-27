@@ -4,6 +4,7 @@
 
 ---@class WrappedConfig
 ---@field path string|nil
+---@field nvim_root string|nil
 ---@field border boolean|string|string[]
 ---@field size { width: integer, height: integer }
 ---@field exclude_filetype string[]

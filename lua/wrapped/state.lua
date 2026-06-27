@@ -5,6 +5,7 @@ local M = {
   -- user config
   config = {
     path = vim.fn.stdpath "config",
+    nvim_root = "",
     border = false,
     size = { width = 120, height = 40 },
     exclude_filetype = { ".gitmodules" },

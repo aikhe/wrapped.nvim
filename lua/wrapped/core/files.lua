@@ -4,7 +4,14 @@ local M = {}
 ---@return string path
 local function get_path()
   local p = require("wrapped.state").config.path or ""
-  if p:sub(1, 1) == "~" then p = (os.getenv("HOME") or "") .. p:sub(2) end
+  if p:sub(1, 1) == "~" then p = (os.getenv "HOME" or "") .. p:sub(2) end
+  return p
+end
+
+--@return string nvim_root
+local function get_nvim_root()
+  local p = require("wrapped.state").config.nvim_root or ""
+  p = (":/%s"):format(p)
   return p
 end
 
@@ -34,6 +41,7 @@ end
 ---@param cb fun(stats: Wrapped.FileStats)
 function M.get_stats_async(cb)
   local config_path = get_path()
+  local nvim_root = get_nvim_root()
 
   -- get empty tree hash first, then diff against HEAD for per-file line counts
   vim.system(
@@ -60,12 +68,19 @@ function M.get_stats_async(cb)
       -- against empty tree, added = total lines in file
       -- we omit HEAD to include staged and modified tracked files
       vim.system(
-        { "git", "diff", "--numstat", empty_tree },
+        { "git", "diff", "--numstat", empty_tree, "--", nvim_root },
         { cwd = config_path, text = true },
         function(diff_out)
           -- also get untracked files
           vim.system(
-            { "git", "ls-files", "--others", "--exclude-standard" },
+            {
+              "git",
+              "ls-files",
+              "--others",
+              "--exclude-standard",
+              "--",
+              nvim_root,
+            },
             { cwd = config_path, text = true },
             function(ls_out)
               vim.schedule(function()
