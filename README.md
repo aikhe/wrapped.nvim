@@ -49,10 +49,10 @@ Run the following command to open the dashboard:
 
 ## Mappings
 
-| Key | Action |
-| --- | --------- |
-| `<` | prev year (configurable) |
-| `>` | next year (configurable) |
+| Key | Action                         |
+| --- | ------------------------------ |
+| `<` | prev year (configurable)       |
+| `>` | next year (configurable)       |
 | `q` | Close dashboard (configurable) |
 
 ## Default Config
@@ -60,6 +60,7 @@ Run the following command to open the dashboard:
 ```lua
 require("wrapped").setup({
   path = vim.fn.stdpath("config"), -- path to your neovim configuration
+  nvim_root = "",                  -- relative path if in a subdir of a larger repo (e.g. "nvim" in ~/dotfiles/nvim)
   border = false,
   size = {
     width = 120,
