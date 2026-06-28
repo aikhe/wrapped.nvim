@@ -96,12 +96,14 @@ end
 ---@param date_str string
 ---@return string last_change
 function M._parse_last_change(date_str)
-  local y, m, d = date_str:match "(%d+)-(%d+)-(%d+)"
-  if not (y and m and d) then return "Unknown" end
+  local y, m, d, h, min = date_str:match "(%d+)-(%d+)-(%d+) (%d+):(%d+)"
+  if not (y and m and d and h and min) then return "Unknown" end
   return M._format_ago(os.time() - os.time {
     year = tonumber(y, 10),
     month = tonumber(m, 10),
     day = tonumber(d, 10),
+    hour = tonumber(h, 10),
+    min = tonumber(min, 10),
   })
 end
 
@@ -110,7 +112,7 @@ end
 function M._unique_sorted(dates)
   local seen = {} ---@type table<string, boolean>
   for _, d in ipairs(dates) do
-    seen[d] = true
+    seen[d:sub(1, 10)] = true
   end
   local sorted = {} ---@type string[]
   for d in pairs(seen) do
@@ -146,74 +148,80 @@ function M.get_all_data_async(year, cb)
   end)
 
   -- config stats (streak, lifetime)
-  exec_git({ "log", "--format=%ad", "--date=short" }, function(out)
-    local lines = vim.split(out, "\n", { trimempty = true })
-    local dates = {}
-    local date_counts = {}
-    local monthly_counts = {}
-    for _, d in ipairs(lines) do
-      table.insert(dates, d)
-      date_counts[d] = (date_counts[d] or 0) + 1
-      local ym = d:sub(1, 7)
-      monthly_counts[ym] = (monthly_counts[ym] or 0) + 1
+  exec_git(
+    { "log", "--format=%ad", "--date=format:%Y-%m-%d %H:%M" },
+    function(out)
+      local lines = vim.split(out, "\n", { trimempty = true })
+      local dates = {}
+      local date_counts = {}
+      local monthly_counts = {}
+      for _, d in ipairs(lines) do
+        table.insert(dates, d)
+        date_counts[d:sub(1, 10)] = (date_counts[d:sub(1, 10)] or 0) + 1
+        local ym = d:sub(1, 7)
+        monthly_counts[ym] = (monthly_counts[ym] or 0) + 1
+      end
+
+      local sorted_months = {}
+      for ym in pairs(monthly_counts) do
+        table.insert(sorted_months, ym)
+      end
+      table.sort(sorted_months)
+
+      local commit_history = {}
+      for _, ym in ipairs(sorted_months) do
+        table.insert(commit_history, monthly_counts[ym])
+      end
+
+      local sorted = M._unique_sorted(dates)
+      local streak, streak_start, streak_end = M._parse_streak(sorted)
+
+      local highest_day = { count = 0, date = "None" }
+      local lowest_day = { count = math.huge, date = "None" }
+
+      for d, c in pairs(date_counts) do
+        if c > highest_day.count then highest_day = { count = c, date = d } end
+        if c < lowest_day.count then lowest_day = { count = c, date = d } end
+      end
+      if lowest_day.count == math.huge then
+        lowest_day = { count = 0, date = "None" }
+      end
+
+      data.config_stats = {
+        longest_streak = streak,
+        longest_streak_start = streak_start,
+        longest_streak_end = streak_end,
+        highest_day = highest_day,
+        lowest_day = lowest_day,
+        commit_history = commit_history,
+        last_change = dates[1] and M._parse_last_change(dates[1]) or "Unknown",
+        lifetime = sorted[1] and M._parse_lifetime(sorted[1]) or "Unknown",
+      }
+      check()
     end
-
-    local sorted_months = {}
-    for ym in pairs(monthly_counts) do
-      table.insert(sorted_months, ym)
-    end
-    table.sort(sorted_months)
-
-    local commit_history = {}
-    for _, ym in ipairs(sorted_months) do
-      table.insert(commit_history, monthly_counts[ym])
-    end
-
-    local sorted = M._unique_sorted(dates)
-    local streak, streak_start, streak_end = M._parse_streak(sorted)
-
-    local highest_day = { count = 0, date = "None" }
-    local lowest_day = { count = math.huge, date = "None" }
-
-    for d, c in pairs(date_counts) do
-      if c > highest_day.count then highest_day = { count = c, date = d } end
-      if c < lowest_day.count then lowest_day = { count = c, date = d } end
-    end
-    if lowest_day.count == math.huge then
-      lowest_day = { count = 0, date = "None" }
-    end
-
-    data.config_stats = {
-      longest_streak = streak,
-      longest_streak_start = streak_start,
-      longest_streak_end = streak_end,
-      highest_day = highest_day,
-      lowest_day = lowest_day,
-      commit_history = commit_history,
-      last_change = dates[1] and M._parse_last_change(dates[1]) or "Unknown",
-      lifetime = sorted[1] and M._parse_lifetime(sorted[1]) or "Unknown",
-    }
-    check()
-  end)
+  )
 
   -- commit activity for heatmap
-  exec_git({ "log", "--format=%ad", "--date=short" }, function(out)
-    local lines = vim.split(out, "\n", { trimempty = true })
-    local counts = {}
-    for _, d in ipairs(lines) do
-      local y, m, day = d:match "(%d+)-(%d+)-(%d+)"
-      if y == tostring(year) then
-        local key = day .. m .. y
-        counts[key] = (counts[key] or 0) + 1
+  exec_git(
+    { "log", "--format=%ad", "--date=format:%Y-%m-%d %H:%M" },
+    function(out)
+      local lines = vim.split(out, "\n", { trimempty = true })
+      local counts = {}
+      for _, d in ipairs(lines) do
+        local y, m, day = d:match "(%d+)-(%d+)-(%d+)"
+        if y == tostring(year) then
+          local key = day .. m .. y
+          counts[key] = (counts[key] or 0) + 1
+        end
       end
+      data.commit_activity = counts
+      check()
     end
-    data.commit_activity = counts
-    check()
-  end)
+  )
 
   -- size history
   exec_git(
-    { "log", "--reverse", "--format=%H %ad", "--date=short" },
+    { "log", "--reverse", "--format=%H %ad", "--date=format:%Y-%m-%d %H:%M" },
     function(out)
       local log_lines = vim.split(out, "\n", { trimempty = true })
       if #log_lines == 0 then
